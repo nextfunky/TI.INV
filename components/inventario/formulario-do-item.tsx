@@ -1,5 +1,6 @@
 "use client";
 
+import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
 
@@ -28,8 +29,10 @@ export type TipoNoFormulario = { id: number; nome: string; categoria: Categoria 
 
 type Props = {
   tipos: TipoNoFormulario[];
-  /** As pessoas para a lista "Usuário". */
-  pessoas: Array<{ id: number; nome: string }>;
+  /** As pessoas para a lista "Usuário", com o local de cada uma. */
+  pessoas: Array<{ id: number; nome: string; caminho: string | null }>;
+  /** Os locais, para o local próprio dos itens sem usuário. */
+  locais: Array<{ id: number; caminho: string }>;
   /** Valores iniciais dos campos. */
   iniciais: Record<string, string>;
   /** Na edição: o item que está sendo editado. */
@@ -70,7 +73,7 @@ function Secao({
 }
 
 /** O formulário de item: novo e editar. */
-export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, iniciais, item, focarNaSerie }: Props) {
+export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, iniciais, item, focarNaSerie }: Props) {
   const editando = Boolean(item);
   const acao = item ? salvarItem.bind(null, item.id) : cadastrarItem;
   const [estado, enviar] = useActionState(acao, ESTADO_INICIAL);
@@ -95,6 +98,8 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, iniciais, it
   const [usuarioId, setUsuarioId] = useState(iniciais.usuarioId ?? "");
   const [status, setStatus] = useState(iniciais.status || "em_estoque");
   const [novaPessoa, setNovaPessoa] = useState(false);
+
+  const caminhoDaPessoa = pessoas.find((p) => String(p.id) === usuarioId)?.caminho ?? null;
 
   function escolherPessoa(id: string) {
     setUsuarioId(id);
@@ -198,6 +203,32 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, iniciais, it
                 </option>
               ))}
             </CampoSelecao>
+            {/* Com usuário, o item fica onde a pessoa está; sem usuário, tem local próprio. */}
+            {usuarioId ? (
+              <p className="flex items-start gap-2 text-13 text-gray-600 sm:col-span-2">
+                <MapPin aria-hidden="true" className="mt-px size-4 shrink-0 text-gray-500" />
+                {caminhoDaPessoa
+                  ? `Fica onde a pessoa está: ${caminhoDaPessoa}`
+                  : "Fica onde a pessoa está (ela ainda não tem local definido)."}
+              </p>
+            ) : (
+              <CampoSelecao
+                id="localId"
+                name="localId"
+                rotulo="Local"
+                className="sm:col-span-2"
+                defaultValue={valor("localId")}
+                erro={erros.localId}
+                dica="Para itens sem usuário, como os do estoque."
+              >
+                <option value="">Sem local definido</option>
+                {locais.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.caminho}
+                  </option>
+                ))}
+              </CampoSelecao>
+            )}
           </Secao>
 
           <Secao titulo="Computador" descricao="Só para desktops e notebooks." escondida={!ehComputador} aparecer={tipoMudou}>
@@ -266,7 +297,9 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, iniciais, it
         aoFechar={() => setNovaPessoa(false)}
         aoCadastrar={(pessoa) => {
           setPessoas((lista) =>
-            [...lista, pessoa].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" })),
+            [...lista, { ...pessoa, caminho: null }].sort((a, b) =>
+              a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }),
+            ),
           );
           escolherPessoa(String(pessoa.id));
           setNovaPessoa(false);

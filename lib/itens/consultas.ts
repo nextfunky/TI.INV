@@ -1,11 +1,13 @@
-import { and, asc, count, desc, eq, ilike, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 
-import { colaboradores, itens, tiposDeItem } from "@/lib/db/schema";
+import { colaboradores, itens, locais, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 import { plural } from "@/lib/texto/plural";
 
 import type { FiltrosDoInventario } from "./filtros";
-import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "./servico";
+import { comOsDeDentro } from "@/lib/locais/arvore";
+
+import { consultaDeItens, juntarItemETipo, LOCAL_ATUAL, type ItemComTipo } from "./servico";
 import { CATEGORIAS, ITENS_POR_PAGINA, MAXIMO_NA_BUSCA, NOME_DA_CATEGORIA, type Categoria } from "./valores";
 
 export { enderecoDoInventario, lerFiltros, temFiltro, type FiltrosDoInventario } from "./filtros";
@@ -81,6 +83,12 @@ export async function listarItens(db: Banco, filtros: FiltrosDoInventario) {
   if (filtros.tipo) condicoes.push(eq(itens.tipoId, filtros.tipo));
   if (filtros.condicao) condicoes.push(eq(itens.condicao, filtros.condicao));
   if (filtros.pessoa) condicoes.push(eq(itens.usuarioId, filtros.pessoa));
+  // O local atual (o da pessoa ou o do item), incluindo os locais de dentro.
+  if (filtros.local === "sem") condicoes.push(sql`${LOCAL_ATUAL} is null`);
+  else if (filtros.local) {
+    const arvore = await db.select({ id: locais.id, nome: locais.nome, paiId: locais.paiId }).from(locais);
+    condicoes.push(inArray(LOCAL_ATUAL, comOsDeDentro(arvore, filtros.local)));
+  }
   // Sem filtro de status, os descartados ficam de fora.
   condicoes.push(filtros.status ? eq(itens.status, filtros.status) : ne(itens.status, "descartado"));
   const onde = and(...condicoes);
@@ -90,6 +98,7 @@ export async function listarItens(db: Banco, filtros: FiltrosDoInventario) {
     .from(itens)
     .innerJoin(tiposDeItem, eq(tiposDeItem.id, itens.tipoId))
     .leftJoin(colaboradores, eq(colaboradores.id, itens.usuarioId))
+    .leftJoin(locais, eq(locais.id, LOCAL_ATUAL))
     .where(onde);
 
   const paginas = Math.max(1, Math.ceil(total / ITENS_POR_PAGINA));

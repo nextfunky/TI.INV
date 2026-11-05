@@ -11,6 +11,7 @@ import { tituloDoItem } from "@/lib/itens/nomes";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
 import { listarParaEscolha } from "@/lib/colaboradores/servico";
 import { listarTipos } from "@/lib/itens/tipos";
+import { listarLocais } from "@/lib/locais/servico";
 
 type Props = PageProps<"/inventario/[codigo]/editar">;
 
@@ -42,7 +43,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
   if (!item) notFound();
   if (item.codigo !== codigo) redirect(`/inventario/${item.codigo}/editar`);
 
-  const [tipos, pessoas] = await Promise.all([listarTipos(db), listarParaEscolha(db)]);
+  const [tipos, pessoas, locais] = await Promise.all([listarTipos(db), listarParaEscolha(db), listarLocais(db)]);
   const titulo = tituloDoItem(item);
   const iniciais: Record<string, string> = {
     tipoId: String(item.tipoId),
@@ -50,6 +51,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
     modelo: item.modelo ?? "",
     numeroSerie: item.numeroSerie ?? "",
     usuarioId: item.usuarioId ? String(item.usuarioId) : "",
+    localId: item.localId ? String(item.localId) : "",
     status: item.status,
     condicao: item.condicao ?? "",
     hostname: item.hostname ?? "",
@@ -83,6 +85,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
         <FormularioDoItem
           tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
           pessoas={pessoas}
+          locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
           iniciais={iniciais}
           item={{ id: item.id, codigo: item.codigo, titulo }}
         />

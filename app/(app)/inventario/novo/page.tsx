@@ -9,6 +9,7 @@ import { obterBanco } from "@/lib/db";
 import { camposParaRepetir, obterItemPorCodigo } from "@/lib/itens/servico";
 import { listarParaEscolha } from "@/lib/colaboradores/servico";
 import { listarTipos } from "@/lib/itens/tipos";
+import { listarLocais } from "@/lib/locais/servico";
 
 export const metadata: Metadata = { title: "Novo item" };
 
@@ -30,7 +31,7 @@ async function Formulario({ searchParams }: Pick<PageProps<"/inventario/novo">, 
   await exigirSessao();
   const { repetir } = await searchParams;
   const db = obterBanco();
-  const [tipos, pessoas] = await Promise.all([listarTipos(db), listarParaEscolha(db)]);
+  const [tipos, pessoas, locais] = await Promise.all([listarTipos(db), listarParaEscolha(db), listarLocais(db)]);
 
   // Depois de "Salvar e cadastrar outro": repete o que é igual ao item anterior.
   const anterior = typeof repetir === "string" ? await obterItemPorCodigo(db, repetir) : null;
@@ -41,6 +42,7 @@ async function Formulario({ searchParams }: Pick<PageProps<"/inventario/novo">, 
       key={anterior?.codigo ?? "novo"}
       tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
       pessoas={pessoas}
+          locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
       iniciais={iniciais}
       focarNaSerie={Boolean(anterior)}
     />

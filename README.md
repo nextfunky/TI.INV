@@ -9,8 +9,8 @@ Cada equipamento, quem usa e onde está. Sistema interno da equipe de TI, usado 
 | 1 | Base: primeiro acesso, login, alterar senha, banco, visual e topo | ✅ feita |
 | 2 | Tipos e itens: códigos, formulário, Inventário, detalhe, busca rápida, Início completo e tela de tipos | ✅ feita |
 | 3 | Colaboradores e alocação, campo Condição, busca na lista e filtros por tipo e condição | ✅ feita |
-| 4 | Locais | ⬜ próxima |
-| 5 | Estoque de materiais (por quantidade) e importação da planilha | ⬜ |
+| 4 | Locais: árvore, local da pessoa e dos itens, página do local, filtro por local | ✅ feita |
+| 5 | Estoque de materiais (por quantidade) e importação da planilha | ⬜ próxima |
 | 6 | Movimentações (histórico) | ⬜ |
 | 7 | Mapa: desenhar | ⬜ |
 | 8 | Mapa: posicionar e ver | ⬜ |
@@ -195,6 +195,7 @@ components/     Peças da tela: topo, botões, campos, avisos, busca rápida, ta
 lib/auth/       Conta, login, sessões e senha
 lib/itens/      Itens e tipos: código automático, nomes, garantia, filtros, Início
 lib/colaboradores/  Pessoas: cadastro, nomes sem repetição, itens de cada pessoa
+lib/locais/     Locais: árvore, caminhos, contagens, trazer pessoas e itens
 lib/db/         Tabelas e conexão com o banco
 drizzle/        Histórico de mudanças do banco (migrations)
 tests/          Testes automáticos (unidade/ e e2e/)

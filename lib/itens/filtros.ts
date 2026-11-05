@@ -15,6 +15,8 @@ export type FiltrosDoInventario = {
   condicao?: Condicao;
   /** Id do colaborador (o chip "Com João Lima ×"). */
   pessoa?: number;
+  /** Id do local (inclui os locais de dentro) ou "sem" (Sem local definido). */
+  local?: number | "sem";
   pagina: number;
 };
 
@@ -44,6 +46,7 @@ export function lerFiltros(parametros: Parametros): FiltrosDoInventario {
     tipo: idPositivo(parametros.tipo),
     condicao: umDe(CONDICOES, parametros.condicao),
     pessoa: idPositivo(parametros.pessoa),
+    local: texto(parametros.local) === "sem" ? "sem" : idPositivo(parametros.local),
     pagina: idPositivo(parametros.pagina) ?? 1,
   };
 }
@@ -51,7 +54,13 @@ export function lerFiltros(parametros: Parametros): FiltrosDoInventario {
 /** Algum filtro (fora a página) está ligado? */
 export function temFiltro(filtros: FiltrosDoInventario): boolean {
   return Boolean(
-    filtros.busca || filtros.categoria || filtros.status || filtros.tipo || filtros.condicao || filtros.pessoa,
+    filtros.busca ||
+      filtros.categoria ||
+      filtros.status ||
+      filtros.tipo ||
+      filtros.condicao ||
+      filtros.pessoa ||
+      filtros.local,
   );
 }
 
@@ -64,6 +73,7 @@ export function enderecoDoInventario(filtros: Partial<FiltrosDoInventario>): str
   if (filtros.tipo) p.set("tipo", String(filtros.tipo));
   if (filtros.condicao) p.set("condicao", filtros.condicao);
   if (filtros.pessoa) p.set("pessoa", String(filtros.pessoa));
+  if (filtros.local) p.set("local", String(filtros.local));
   if (filtros.pagina && filtros.pagina > 1) p.set("pagina", String(filtros.pagina));
   const consulta = p.toString();
   return consulta ? `/inventario?${consulta}` : "/inventario";

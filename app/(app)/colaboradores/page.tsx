@@ -87,7 +87,10 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
                   className="group flex min-h-14 items-center gap-3 px-6 py-2.5 transition-colors duration-150 hover:bg-gray-50"
                 >
                   <Avatar nome={c.nome} />
-                  <span className="min-w-0 flex-1 truncate font-medium">{c.nome}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{c.nome}</span>
+                    <span className="block truncate text-13 text-gray-500">{c.caminho ?? "Sem local definido"}</span>
+                  </span>
                   <span className="text-gray-500">{c.itens === 0 ? "Nenhum item" : plural(c.itens, "item", "itens")}</span>
                   <ChevronRight
                     aria-hidden="true"

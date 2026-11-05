@@ -8,11 +8,17 @@ import { ESTADO_INICIAL } from "@/lib/formulario";
 
 import { classesDoBotao } from "../botao";
 import { BotaoEnviar } from "../botao-enviar";
-import { CampoTexto, FaixaDeErro } from "../campo";
+import { CampoSelecao, CampoTexto, FaixaDeErro } from "../campo";
 import { useFocarErro } from "../use-focar-erro";
 
-/** Formulário de colaborador: só o nome (o local chega na Etapa 4). */
-export function FormularioDoColaborador({ pessoa }: { pessoa?: { id: number; nome: string } }) {
+/** Formulário de colaborador: o nome e onde a pessoa senta. */
+export function FormularioDoColaborador({
+  pessoa,
+  locais,
+}: {
+  pessoa?: { id: number; nome: string; localId: number | null };
+  locais: Array<{ id: number; caminho: string }>;
+}) {
   const acao = pessoa ? salvarColaborador.bind(null, pessoa.id) : cadastrarColaborador;
   const [estado, enviar] = useActionState(acao, ESTADO_INICIAL);
   const formulario = useFocarErro(estado);
@@ -33,6 +39,21 @@ export function FormularioDoColaborador({ pessoa }: { pessoa?: { id: number; nom
           defaultValue={estado.valores?.nome ?? pessoa?.nome ?? ""}
           erro={erros.nome}
         />
+        <CampoSelecao
+          id="localId"
+          name="localId"
+          rotulo="Local"
+          defaultValue={estado.valores?.localId ?? (pessoa?.localId ? String(pessoa.localId) : "")}
+          erro={erros.localId}
+          dica="Os itens com esta pessoa ficam aqui."
+        >
+          <option value="">Sem local definido</option>
+          {locais.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.caminho}
+            </option>
+          ))}
+        </CampoSelecao>
       </div>
       <div className="mt-6 flex justify-end gap-2">
         <Link href={pessoa ? `/colaboradores/${pessoa.id}` : "/colaboradores"} className={classesDoBotao("secundario")}>

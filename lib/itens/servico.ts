@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import { colaboradores, itens, tiposDeItem } from "@/lib/db/schema";
+import { colaboradores, itens, locais, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 
 import { CAMPOS_DE_COMPUTADOR, type DadosDoItem } from "./regras";
@@ -14,7 +14,16 @@ import type { Categoria } from "./valores";
 export type Item = typeof itens.$inferSelect;
 export type TipoResumido = { id: number; nome: string; categoria: Categoria; prefixo: string; icone: string };
 export type UsuarioResumido = { id: number; nome: string };
-export type ItemComTipo = Item & { tipo: TipoResumido; usuario: UsuarioResumido | null };
+export type LocalResumido = { id: number; nome: string; caminho: string };
+export type ItemComTipo = Item & {
+  tipo: TipoResumido;
+  usuario: UsuarioResumido | null;
+  /** O local atual: o da pessoa (se o item tem usuário) ou o próprio do item. */
+  local: LocalResumido | null;
+};
+
+/** O local atual do item, em SQL: o da pessoa se há usuário; senão, o do item. */
+export const LOCAL_ATUAL = sql<number | null>`case when ${itens.usuarioId} is not null then ${colaboradores.localId} else ${itens.localId} end`;
 
 /** Os campos do item, do tipo e de quem usa, para as consultas que mostram itens. */
 const CAMPOS_DO_ITEM_COMPLETO = {
@@ -27,6 +36,7 @@ const CAMPOS_DO_ITEM_COMPLETO = {
     icone: tiposDeItem.icone,
   },
   usuario: { id: colaboradores.id, nome: colaboradores.nome },
+  local: { id: locais.id, nome: locais.nome, caminho: locais.caminho },
 };
 
 /** Começo de toda consulta que mostra itens: o item, o tipo e a pessoa (se houver). */
@@ -36,6 +46,7 @@ export function consultaDeItens(db: Banco) {
     .from(itens)
     .innerJoin(tiposDeItem, eq(tiposDeItem.id, itens.tipoId))
     .leftJoin(colaboradores, eq(colaboradores.id, itens.usuarioId))
+    .leftJoin(locais, eq(locais.id, LOCAL_ATUAL))
     .$dynamic();
 }
 
@@ -43,8 +54,14 @@ export function juntarItemETipo(linha: {
   item: Item;
   tipo: TipoResumido;
   usuario: UsuarioResumido | null;
+  local: LocalResumido | null;
 }): ItemComTipo {
-  return { ...linha.item, tipo: linha.tipo, usuario: linha.usuario?.id ? linha.usuario : null };
+  return {
+    ...linha.item,
+    tipo: linha.tipo,
+    usuario: linha.usuario?.id ? linha.usuario : null,
+    local: linha.local?.id ? linha.local : null,
+  };
 }
 
 /** "DSK" + 1 → "DSK0001". Acima de 9999 o número só continua crescendo. */
@@ -52,11 +69,15 @@ export function montarCodigo(prefixo: string, numero: number): string {
   return `${prefixo}${String(numero).padStart(4, "0")}`;
 }
 
-/** Os campos de computador só valem para tipos da categoria Computador. */
+/**
+ * Antes de gravar: os campos de computador só valem para tipos da categoria
+ * Computador, e o local próprio só vale para itens sem usuário (com usuário,
+ * o item fica onde a pessoa está).
+ */
 function aplicarCategoria(dados: DadosDoItem, categoria: Categoria) {
-  if (categoria === "computador") return dados;
   const limpo = { ...dados };
-  for (const campo of CAMPOS_DE_COMPUTADOR) limpo[campo] = null;
+  if (categoria !== "computador") for (const campo of CAMPOS_DE_COMPUTADOR) limpo[campo] = null;
+  if (limpo.usuarioId !== null) limpo.localId = null;
   return limpo;
 }
 
@@ -81,6 +102,14 @@ async function pessoaExiste(tx: Banco, usuarioId: number | null): Promise<boolea
 }
 
 const ERRO_DE_PESSOA = { usuarioId: "Escolha uma pessoa da lista." };
+const ERRO_DE_LOCAL = { localId: "Escolha um local da lista." };
+
+/** O local escolhido ainda existe? */
+async function localExiste(tx: Banco, localId: number | null): Promise<boolean> {
+  if (localId === null) return true;
+  const [linha] = await tx.select({ id: locais.id }).from(locais).where(eq(locais.id, localId));
+  return Boolean(linha);
+}
 
 export async function criarItem(
   db: Banco,
@@ -88,6 +117,7 @@ export async function criarItem(
 ): Promise<{ criado: true; codigo: string } | { criado: false; erros: Record<string, string> }> {
   return db.transaction(async (tx) => {
     if (!(await pessoaExiste(tx, dados.usuarioId))) return { criado: false as const, erros: ERRO_DE_PESSOA };
+    if (!(await localExiste(tx, dados.localId))) return { criado: false as const, erros: ERRO_DE_LOCAL };
     const reserva = await reservarCodigo(tx, dados.tipoId);
     if (!reserva) return { criado: false as const, erros: { tipoId: "Escolha o tipo." } };
 
@@ -111,6 +141,7 @@ export async function editarItem(db: Banco, id: number, dados: DadosDoItem): Pro
       .for("update");
     if (!atual) return { salvo: false, naoEncontrado: true };
     if (!(await pessoaExiste(tx, dados.usuarioId))) return { salvo: false, erros: ERRO_DE_PESSOA };
+    if (!(await localExiste(tx, dados.localId))) return { salvo: false, erros: ERRO_DE_LOCAL };
 
     let codigo = atual.codigo;
     let categoria: Categoria;
@@ -160,6 +191,7 @@ export function camposParaRepetir(item: Item): Record<string, string> {
     modelo: item.modelo ?? "",
     status: item.status,
     condicao: item.condicao ?? "",
+    localId: item.localId ? String(item.localId) : "",
     processador: item.processador ?? "",
     memoriaRam: item.memoriaRam ?? "",
     armazenamento: item.armazenamento ?? "",

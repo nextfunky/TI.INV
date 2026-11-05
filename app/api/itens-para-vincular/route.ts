@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
   const itens = await itensParaVincular(obterBanco(), pessoa, termo);
   return NextResponse.json(
     {
-      itens: itens.map((i) => ({
+      opcoes: itens.map((i) => ({
         id: i.id,
         codigo: i.codigo,
         nome: nomeCompletoDoItem(i),
         status: i.status,
-        usuario: i.usuario?.nome ?? null,
+        aviso: i.usuario ? `Com ${i.usuario.nome}` : null,
       })),
     },
     { headers: { "Cache-Control": "no-store" } },

@@ -5,6 +5,8 @@ import { CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
 import { FormularioDoColaborador } from "@/components/colaboradores/formulario";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { obterBanco } from "@/lib/db";
+import { listarLocais } from "@/lib/locais/servico";
 
 export const metadata: Metadata = { title: "Novo colaborador" };
 
@@ -27,5 +29,6 @@ export default function PaginaNovoColaborador() {
 
 async function Formulario() {
   await exigirSessao();
-  return <FormularioDoColaborador />;
+  const locais = await listarLocais(obterBanco());
+  return <FormularioDoColaborador locais={locais.map(({ id, caminho }) => ({ id, caminho }))} />;
 }

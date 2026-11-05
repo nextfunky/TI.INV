@@ -1,4 +1,4 @@
-import { List, Package, Pencil, Plus } from "lucide-react";
+import { List, MapPin, Package, Pencil, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -55,10 +55,23 @@ async function Pessoa({ params }: Pick<Props, "params">) {
           <Avatar nome={pessoa.nome} tamanho={48} />
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-[-0.01em] break-words">{pessoa.nome}</h1>
-            <p className="mt-1 text-gray-500">
-              {pessoa.itensAtivos === 0
-                ? "Nenhum item com esta pessoa"
-                : `${plural(pessoa.itensAtivos, "item", "itens")} com esta pessoa`}
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-gray-500">
+              <span>
+                {pessoa.itensAtivos === 0
+                  ? "Nenhum item com esta pessoa"
+                  : `${plural(pessoa.itensAtivos, "item", "itens")} com esta pessoa`}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin aria-hidden="true" className="size-3.5" />
+                {pessoa.localId && pessoa.caminho ? (
+                  <Link href={`/locais/${pessoa.localId}`} className="transition-colors duration-150 hover:text-gray-900">
+                    {pessoa.caminho}
+                  </Link>
+                ) : (
+                  "Sem local definido"
+                )}
+              </span>
             </p>
           </div>
         </div>

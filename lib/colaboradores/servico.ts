@@ -1,6 +1,6 @@
 import { and, asc, count, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
-import { colaboradores, itens } from "@/lib/db/schema";
+import { colaboradores, itens, locais } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 import { condicaoDeBusca, ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
 import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/servico";
@@ -31,28 +31,43 @@ async function nomeJaExiste(db: Banco, chave: string, ignorarId?: number): Promi
   return Boolean(linha);
 }
 
+async function localExiste(db: Banco, localId: number | null) {
+  if (localId === null) return true;
+  const [linha] = await db.select({ id: locais.id }).from(locais).where(eq(locais.id, localId));
+  return Boolean(linha);
+}
+
+const LOCAL_INVALIDO = "Escolha um local da lista.";
+
 export async function criarColaborador(
   db: Banco,
   nome: string,
-): Promise<{ criado: true; colaborador: Colaborador } | { criado: false; erro: string }> {
+  localId: number | null = null,
+): Promise<{ criado: true; colaborador: Colaborador } | { criado: false; erro: string; campo?: "localId" }> {
   const chave = chaveDoNome(nome);
   if (await nomeJaExiste(db, chave)) return { criado: false, erro: NOME_REPETIDO };
-  const [colaborador] = await db.insert(colaboradores).values({ nome, chave }).onConflictDoNothing().returning();
+  if (!(await localExiste(db, localId))) return { criado: false, erro: LOCAL_INVALIDO, campo: "localId" };
+  const [colaborador] = await db.insert(colaboradores).values({ nome, chave, localId }).onConflictDoNothing().returning();
   // Se outra aba cadastrou o mesmo nome no mesmo instante, o banco segura.
   return colaborador ? { criado: true, colaborador } : { criado: false, erro: NOME_REPETIDO };
 }
 
-/** Renomear muda o nome em todos os itens da pessoa, porque eles apontam para ela. */
+/**
+ * Renomear muda o nome em todos os itens da pessoa, e mudar o local muda o
+ * local de todos eles, porque os itens apontam para ela.
+ */
 export async function editarColaborador(
   db: Banco,
   id: number,
   nome: string,
-): Promise<{ salvo: true } | { salvo: false; erro: string } | { salvo: false; naoEncontrado: true }> {
+  localId: number | null = null,
+): Promise<{ salvo: true } | { salvo: false; erro: string; campo?: "localId" } | { salvo: false; naoEncontrado: true }> {
   const chave = chaveDoNome(nome);
   if (await nomeJaExiste(db, chave, id)) return { salvo: false, erro: NOME_REPETIDO };
+  if (!(await localExiste(db, localId))) return { salvo: false, erro: LOCAL_INVALIDO, campo: "localId" };
   const [salvo] = await db
     .update(colaboradores)
-    .set({ nome, chave, atualizadoEm: sql`now()` })
+    .set({ nome, chave, localId, atualizadoEm: sql`now()` })
     .where(eq(colaboradores.id, id))
     .returning({ id: colaboradores.id });
   return salvo ? { salvo: true } : { salvo: false, naoEncontrado: true };
@@ -88,11 +103,12 @@ export async function listarColaboradores(db: Banco, filtros: { busca?: string; 
   const pagina = Math.min(filtros.pagina, paginas);
 
   const linhas = await db
-    .select({ id: colaboradores.id, nome: colaboradores.nome, itens: ITENS_ATIVOS })
+    .select({ id: colaboradores.id, nome: colaboradores.nome, caminho: locais.caminho, itens: ITENS_ATIVOS })
     .from(colaboradores)
     .leftJoin(itens, eq(itens.usuarioId, colaboradores.id))
+    .leftJoin(locais, eq(locais.id, colaboradores.localId))
     .where(onde)
-    .groupBy(colaboradores.id)
+    .groupBy(colaboradores.id, locais.caminho)
     .orderBy(asc(colaboradores.chave))
     .limit(ITENS_POR_PAGINA)
     .offset((pagina - 1) * ITENS_POR_PAGINA);
@@ -109,17 +125,29 @@ export async function totalDeColaboradores(db: Banco): Promise<number> {
 /** Uma pessoa, com quantos itens ela tem (sem os descartados) e no total. */
 export async function obterColaborador(db: Banco, id: number) {
   const [linha] = await db
-    .select({ id: colaboradores.id, nome: colaboradores.nome, itensAtivos: ITENS_ATIVOS, totalDeItens: TODOS_OS_ITENS })
+    .select({
+      id: colaboradores.id,
+      nome: colaboradores.nome,
+      localId: colaboradores.localId,
+      caminho: locais.caminho,
+      itensAtivos: ITENS_ATIVOS,
+      totalDeItens: TODOS_OS_ITENS,
+    })
     .from(colaboradores)
     .leftJoin(itens, eq(itens.usuarioId, colaboradores.id))
+    .leftJoin(locais, eq(locais.id, colaboradores.localId))
     .where(eq(colaboradores.id, id))
-    .groupBy(colaboradores.id);
+    .groupBy(colaboradores.id, locais.caminho);
   return linha ?? null;
 }
 
-/** Todas as pessoas, para a lista "Usuário" do formulário de item. */
-export async function listarParaEscolha(db: Banco): Promise<Array<{ id: number; nome: string }>> {
-  return db.select({ id: colaboradores.id, nome: colaboradores.nome }).from(colaboradores).orderBy(asc(colaboradores.chave));
+/** Todas as pessoas, para a lista "Usuário" do formulário de item (com o local de cada uma). */
+export async function listarParaEscolha(db: Banco): Promise<Array<{ id: number; nome: string; caminho: string | null }>> {
+  return db
+    .select({ id: colaboradores.id, nome: colaboradores.nome, caminho: locais.caminho })
+    .from(colaboradores)
+    .leftJoin(locais, eq(locais.id, colaboradores.localId))
+    .orderBy(asc(colaboradores.chave));
 }
 
 /** Os itens com a pessoa, sem os descartados, em ordem de código. */
@@ -175,7 +203,8 @@ export async function vincularItens(
 
     const alterados = await tx
       .update(itens)
-      .set({ usuarioId: pessoaId, status: STATUS_AO_VINCULAR, atualizadoEm: sql`now()` })
+      // Com usuário, o item fica onde a pessoa está: o local próprio sai.
+      .set({ usuarioId: pessoaId, localId: null, status: STATUS_AO_VINCULAR, atualizadoEm: sql`now()` })
       .where(and(inArray(itens.id, ids), ne(itens.status, "descartado")))
       .returning({ codigo: itens.codigo });
     return { ok: true as const, nome: pessoa.nome, codigos: alterados.map((a) => a.codigo).sort() };

@@ -49,7 +49,15 @@ function Selecao({
  * o filtro; a busca vale ao apertar Enter. Sem JavaScript, o formulário
  * também funciona (com o botão "Filtrar").
  */
-export function BuscaESelecoes({ filtros, tipos }: { filtros: FiltrosDoInventario; tipos: TipoNaLista[] }) {
+export function BuscaESelecoes({
+  filtros,
+  tipos,
+  locais,
+}: {
+  filtros: FiltrosDoInventario;
+  tipos: TipoNaLista[];
+  locais: Array<{ id: number; caminho: string }>;
+}) {
   const router = useRouter();
   const [busca, setBusca] = useState(filtros.busca ?? "");
 
@@ -137,6 +145,26 @@ export function BuscaESelecoes({ filtros, tipos }: { filtros: FiltrosDoInventari
         {CONDICOES.map((c) => (
           <option key={c} value={c}>
             {NOME_DA_CONDICAO[c]}
+          </option>
+        ))}
+      </Selecao>
+
+      <Selecao
+        id="filtro-local"
+        name="local"
+        rotulo="Local"
+        ativa={Boolean(filtros.local)}
+        value={filtros.local ?? ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          aplicar({ local: v === "sem" ? "sem" : v ? Number(v) : undefined });
+        }}
+      >
+        <option value="">Todos os locais</option>
+        <option value="sem">Sem local definido</option>
+        {locais.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.caminho}
           </option>
         ))}
       </Selecao>

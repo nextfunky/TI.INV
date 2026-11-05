@@ -20,12 +20,12 @@ export async function cadastrarColaborador(
   dados: FormData,
 ): Promise<EstadoDoFormulario> {
   await exigirSessao();
-  const valores = lerFormulario(dados, ["nome"]);
+  const valores = lerFormulario(dados, ["nome", "localId"]);
   const validacao = regrasDoColaborador.safeParse(valores);
   if (!validacao.success) return { erros: errosPorCampo(validacao.error), valores };
 
-  const resultado = await criarColaborador(obterBanco(), validacao.data.nome);
-  if (!resultado.criado) return { erros: { nome: resultado.erro }, valores };
+  const resultado = await criarColaborador(obterBanco(), validacao.data.nome, validacao.data.localId);
+  if (!resultado.criado) return { erros: { [resultado.campo ?? "nome"]: resultado.erro }, valores };
 
   atualizarTelas();
   await avisar(`Cadastro de ${resultado.colaborador.nome} criado.`);
@@ -38,16 +38,16 @@ export async function salvarColaborador(
   dados: FormData,
 ): Promise<EstadoDoFormulario> {
   await exigirSessao();
-  const valores = lerFormulario(dados, ["nome"]);
+  const valores = lerFormulario(dados, ["nome", "localId"]);
   const validacao = regrasDoColaborador.safeParse(valores);
   if (!validacao.success) return { erros: errosPorCampo(validacao.error), valores };
 
-  const resultado = await editarColaborador(obterBanco(), id, validacao.data.nome);
+  const resultado = await editarColaborador(obterBanco(), id, validacao.data.nome, validacao.data.localId);
   if (!resultado.salvo && "naoEncontrado" in resultado) {
     await avisar("Esta pessoa não está mais no cadastro.", "erro");
     redirect("/colaboradores");
   }
-  if (!resultado.salvo) return { erros: { nome: resultado.erro }, valores };
+  if (!resultado.salvo) return { erros: { [resultado.campo ?? "nome"]: resultado.erro }, valores };
 
   atualizarTelas();
   await avisar("Alterações salvas.");

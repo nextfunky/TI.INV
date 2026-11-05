@@ -48,7 +48,7 @@ beforeEach(async () => {
 
 function dados(parcial: Partial<DadosDoItem> & { tipoId: number }): DadosDoItem {
   return {
-    marca: null, modelo: null, numeroSerie: null, usuarioId: null, status: "em_estoque", condicao: null,
+    marca: null, modelo: null, numeroSerie: null, usuarioId: null, localId: null, status: "em_estoque", condicao: null,
     hostname: null, processador: null, memoriaRam: null, armazenamento: null, sistemaOperacional: null,
     dataCompra: null, garantiaAte: null, observacoes: null,
     ...parcial,

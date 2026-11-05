@@ -37,8 +37,8 @@ export function TabelaDeItens({
               Tipo
             </th>
             {mostrarUsuario ? (
-              <th scope="col" className="w-48 py-3 pr-4 font-medium">
-                Usuário
+              <th scope="col" className="w-52 py-3 pr-4 font-medium">
+                Usuário e local
               </th>
             ) : null}
             <th scope="col" className="w-40 py-3 pr-4 font-medium">
@@ -74,8 +74,15 @@ export function TabelaDeItens({
                 </td>
                 <td className="py-3 pr-4 align-middle text-gray-600">{item.tipo.nome}</td>
                 {mostrarUsuario ? (
-                  <td className="max-w-48 truncate py-3 pr-4 align-middle text-gray-700">
-                    {item.usuario ? item.usuario.nome : <span className="text-gray-500">—</span>}
+                  <td className="max-w-52 py-2.5 pr-4 align-middle">
+                    <p className="truncate text-gray-700">
+                      {item.usuario ? item.usuario.nome : <span className="text-gray-500">—</span>}
+                    </p>
+                    {item.local ? (
+                      <p className="truncate text-13 text-gray-500" title={item.local.caminho}>
+                        {item.local.nome}
+                      </p>
+                    ) : null}
                   </td>
                 ) : null}
                 <td className="py-3 pr-4 align-middle text-gray-700">

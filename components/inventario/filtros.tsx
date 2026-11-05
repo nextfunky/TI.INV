@@ -15,10 +15,12 @@ import { BuscaESelecoes, type TipoNaLista } from "./busca-e-selecoes";
 export function FiltrosDoInventario({
   filtros,
   tipos,
+  locais,
   pessoa,
 }: {
   filtros: FiltrosDoInventario;
   tipos: TipoNaLista[];
+  locais: Array<{ id: number; caminho: string }>;
   /** Nome da pessoa do filtro "Com João Lima ×", se houver. */
   pessoa?: string;
 }) {
@@ -77,7 +79,7 @@ export function FiltrosDoInventario({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <BuscaESelecoes filtros={filtros} tipos={tipos} />
+        <BuscaESelecoes filtros={filtros} tipos={tipos} locais={locais} />
         {pessoa && filtros.pessoa ? (
           <Link
             href={com({ pessoa: undefined })}

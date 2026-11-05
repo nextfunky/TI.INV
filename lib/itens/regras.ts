@@ -25,6 +25,7 @@ export const CAMPOS_DO_ITEM = [
   "modelo",
   "numeroSerie",
   "usuarioId",
+  "localId",
   "status",
   "condicao",
   "hostname",
@@ -56,6 +57,10 @@ export const regrasDoItem = z.object({
   usuarioId: z
     .string()
     .regex(/^\d*$/, "Escolha uma pessoa da lista.")
+    .transform((v) => (v ? Number(v) : null)),
+  localId: z
+    .string()
+    .regex(/^\d*$/, "Escolha um local da lista.")
     .transform((v) => (v ? Number(v) : null)),
   status: z.enum(STATUS, { message: "Escolha o status." }),
   condicao: z
@@ -89,10 +94,25 @@ export const regrasDoPrefixo = z
 
 export type DadosDoTipo = z.output<typeof regrasDoTipo>;
 
+const localOpcional = z
+  .string()
+  .regex(/^\d*$/, "Escolha um local da lista.")
+  .transform((v) => (v ? Number(v) : null));
+
 /** Nome do colaborador: espaços extras saem ("  maria   souza " → "maria souza"). */
 export const regrasDoColaborador = z.object({
   nome: z
     .string()
     .transform((v) => v.trim().replace(/\s+/g, " "))
     .pipe(z.string().min(1, "Informe o nome.").max(120, "Use no máximo 120 caracteres.")),
+  localId: localOpcional.optional().transform((v) => v ?? null),
+});
+
+/** Nome do local e onde ele fica ("Dentro de"). */
+export const regrasDoLocal = z.object({
+  nome: z
+    .string()
+    .transform((v) => v.trim().replace(/\s+/g, " "))
+    .pipe(z.string().min(1, "Informe o nome.").max(80, "Use no máximo 80 caracteres.")),
+  paiId: localOpcional,
 });

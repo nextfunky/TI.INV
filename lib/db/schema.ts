@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 import { CATEGORIAS, CONDICOES, STATUS } from "@/lib/itens/valores";
@@ -79,6 +80,29 @@ export const tiposDeItem = pgTable(
 );
 
 /**
+ * Os lugares da empresa, em árvore livre: um local pode ficar dentro de outro.
+ * O `caminho` ("Filial 04 › 2º andar › Financeiro") é guardado pronto e
+ * refeito sempre que um local é renomeado ou movido.
+ */
+export const locais = pgTable(
+  "locais",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    nome: text("nome").notNull(),
+    paiId: integer("pai_id").references((): AnyPgColumn => locais.id, { onDelete: "restrict" }),
+    caminho: text("caminho").notNull(),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [
+    // Dois locais com o mesmo nome não podem ficar dentro do mesmo pai.
+    uniqueIndex("locais_nome_unico_no_pai").on(sql`coalesce(${t.paiId}, 0)`, sql`lower(${t.nome})`),
+    index("locais_pai_id_idx").on(t.paiId),
+    check("locais_nao_dentro_de_si", sql`${t.paiId} is null or ${t.paiId} <> ${t.id}`),
+  ],
+);
+
+/**
  * As pessoas que usam os equipamentos. Não acessam o sistema: são só um cadastro.
  * A `chave` é o nome normalizado (espaços colapsados, minúsculas), para que
  * "JOÃO LIMA" e "João Lima" sejam a mesma pessoa.
@@ -89,10 +113,12 @@ export const colaboradores = pgTable(
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     nome: text("nome").notNull(),
     chave: text("chave").notNull(),
+    /** Onde a pessoa senta. Os itens com ela ficam aqui. */
+    localId: integer("local_id").references(() => locais.id, { onDelete: "restrict" }),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
-  (t) => [uniqueIndex("colaboradores_chave_unica").on(t.chave)],
+  (t) => [uniqueIndex("colaboradores_chave_unica").on(t.chave), index("colaboradores_local_id_idx").on(t.localId)],
 );
 
 export const condicaoDoItem = pgEnum("condicao_do_item", CONDICOES);
@@ -111,6 +137,8 @@ export const itens = pgTable(
     numeroSerie: text("numero_serie"),
     /** Com quem o item está. Não dá para excluir uma pessoa que tem itens. */
     usuarioId: integer("usuario_id").references(() => colaboradores.id, { onDelete: "restrict" }),
+    /** Local próprio: só para itens sem usuário (com usuário, o item fica onde a pessoa está). */
+    localId: integer("local_id").references(() => locais.id, { onDelete: "restrict" }),
     status: statusDoItem("status").notNull().default("em_estoque"),
     /** Estado de conservação: Novo, Bom, Usado, Regular, Defeituoso. */
     condicao: condicaoDoItem("condicao"),
@@ -131,6 +159,7 @@ export const itens = pgTable(
     uniqueIndex("itens_codigo_unico").on(t.codigo),
     index("itens_tipo_id_idx").on(t.tipoId),
     index("itens_usuario_id_idx").on(t.usuarioId),
+    index("itens_local_id_idx").on(t.localId),
     index("itens_status_idx").on(t.status),
     index("itens_atualizado_em_idx").on(t.atualizadoEm),
   ],

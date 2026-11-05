@@ -1,4 +1,4 @@
-import { ChevronRight, Pencil } from "lucide-react";
+import { ChevronRight, MapPin, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -18,6 +18,7 @@ import { situacaoDaGarantia } from "@/lib/itens/garantia";
 import { nomeCompletoDoItem, tituloDoItem } from "@/lib/itens/nomes";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
 import { NOME_DA_CONDICAO } from "@/lib/itens/valores";
+import { caminhoDeCima } from "@/lib/locais/arvore";
 import { FUSO, formatarData, hojeEmSaoPaulo, tempoDesde } from "@/lib/texto/data";
 import { juntar } from "@/lib/texto/plural";
 
@@ -168,6 +169,54 @@ async function Detalhe({ params }: Pick<Props, "params">) {
             ) : (
               <p className="mt-3 text-gray-500">Sem usuário. Edite o item para entregá-lo a alguém.</p>
             )}
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <h2 className="text-13 font-medium text-gray-500">Localização</h2>
+            <div className="mt-3 flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-600">
+                <MapPin aria-hidden="true" className="size-4" />
+              </span>
+              <div className="min-w-0">
+                {item.local ? (
+                  <>
+                    <Link
+                      href={`/locais/${item.local.id}`}
+                      title={item.local.caminho}
+                      className="font-medium break-words transition-colors duration-150 hover:text-accent"
+                    >
+                      {item.local.nome}
+                    </Link>
+                    {caminhoDeCima(item.local.caminho) ? (
+                      <p className="text-13 text-gray-500" title={item.local.caminho}>
+                        {caminhoDeCima(item.local.caminho)}
+                      </p>
+                    ) : null}
+                    {item.usuario ? <p className="mt-1 text-13 text-gray-500">Onde {item.usuario.nome} está.</p> : null}
+                  </>
+                ) : item.usuario ? (
+                  <>
+                    <p className="text-gray-600">{item.usuario.nome} ainda não tem local.</p>
+                    <Link
+                      href={`/colaboradores/${item.usuario.id}/editar`}
+                      className="text-13 font-medium text-accent transition-colors duration-150 hover:text-accent-forte"
+                    >
+                      Definir o local da pessoa
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-600">Sem local definido.</p>
+                    <Link
+                      href={`/inventario/${item.codigo}/editar`}
+                      className="text-13 font-medium text-accent transition-colors duration-150 hover:text-accent-forte"
+                    >
+                      Definir local
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {item.usuario && outros ? (

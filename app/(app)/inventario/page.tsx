@@ -20,6 +20,7 @@ import {
   totaisDoInventario,
 } from "@/lib/itens/consultas";
 import { listarTipos } from "@/lib/itens/tipos";
+import { listarLocais } from "@/lib/locais/servico";
 
 export const metadata: Metadata = { title: "Inventário" };
 
@@ -37,10 +38,11 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
   const filtrado = temFiltro(filtros);
 
   const db = obterBanco();
-  const [totais, lista, tipos, pessoa] = await Promise.all([
+  const [totais, lista, tipos, locais, pessoa] = await Promise.all([
     totaisDoInventario(db),
     listarItens(db, filtros),
     listarTipos(db),
+    listarLocais(db),
     filtros.pessoa ? obterColaborador(db, filtros.pessoa) : null,
   ]);
 
@@ -52,6 +54,7 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
         <FiltrosDoInventario
           filtros={filtros}
           tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
+          locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
           pessoa={pessoa?.nome}
         />
       </div>

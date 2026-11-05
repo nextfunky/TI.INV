@@ -43,6 +43,7 @@ function dados(parcial: Partial<DadosDoItem> & { tipoId: number }): DadosDoItem 
     modelo: null,
     numeroSerie: null,
     usuarioId: null,
+    localId: null,
     status: "em_estoque",
     condicao: null,
     hostname: null,
@@ -158,7 +159,7 @@ describe("campos de computador", () => {
 
 describe("formulário de item", () => {
   const vazio = {
-    tipoId: "", marca: "", modelo: "", numeroSerie: "", usuarioId: "", status: "em_estoque", condicao: "", hostname: "", processador: "",
+    tipoId: "", marca: "", modelo: "", numeroSerie: "", usuarioId: "", localId: "", status: "em_estoque", condicao: "", hostname: "", processador: "",
     memoriaRam: "", armazenamento: "", sistemaOperacional: "", dataCompra: "", garantiaAte: "", observacoes: "",
   };
 

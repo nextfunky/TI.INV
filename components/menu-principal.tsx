@@ -9,7 +9,10 @@ import { cx } from "@/lib/classes";
  * O menu principal do topo. Só tem as telas que já existem: Mapa e Relatórios
  * entram quando ficarem prontos, para não haver link que leva a lugar nenhum.
  */
-const TELAS = [{ href: "/colaboradores", rotulo: "Colaboradores" }];
+const TELAS = [
+  { href: "/colaboradores", rotulo: "Colaboradores" },
+  { href: "/locais", rotulo: "Locais" },
+];
 
 export function MenuPrincipal({ marcar = true }: { marcar?: boolean }) {
   return marcar ? <ComPagina /> : <Links atual={null} />;

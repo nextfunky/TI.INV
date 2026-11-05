@@ -182,7 +182,7 @@ test("na página da pessoa, vincula vários itens de uma vez e devolve", async (
   await expect(janela.getByText("3 itens escolhidos · 1 sai de outra pessoa")).toBeVisible();
 
   // A busca muda a lista, mas os escolhidos continuam escolhidos.
-  await janela.getByRole("searchbox", { name: "Buscar item" }).fill("mou");
+  await janela.getByRole("searchbox", { name: "Buscar" }).fill("mou");
   await expect(janela.getByRole("checkbox")).toHaveCount(1);
   await expect(janela.getByText("3 itens escolhidos")).toBeVisible();
 
