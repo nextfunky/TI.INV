@@ -9,6 +9,7 @@ import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { obterBanco } from "@/lib/db";
 import { listarLocais } from "@/lib/locais/servico";
+import { nomeDoMaterial } from "@/lib/materiais/nomes";
 import { obterMaterial } from "@/lib/materiais/servico";
 
 export const metadata: Metadata = { title: "Editar material" };
@@ -43,14 +44,14 @@ async function Edicao({ params }: Pick<Props, "params">) {
       <Trilha
         partes={[
           { rotulo: "Materiais", href: "/materiais" },
-          { rotulo: material.nome, href: `/materiais/${id}` },
+          { rotulo: nomeDoMaterial(material), href: `/materiais?material=${id}` },
           { rotulo: "Editar" },
         ]}
       />
       <div className="flex max-w-2xl flex-wrap items-start justify-between gap-4">
         <CabecalhoDaPagina titulo="Editar material" subtitulo="A quantidade muda pela Entrada, Saída ou Ajuste de contagem." />
         {/* Só material que nunca teve saída pode ser excluído. */}
-        {material.temSaidas ? null : <ExcluirMaterial id={id} nome={material.nome} />}
+        {material.temSaidas ? null : <ExcluirMaterial id={id} nome={nomeDoMaterial(material)} />}
       </div>
       <div className="mt-8">
         <FormularioDoMaterial material={material} locais={locais.map(({ id: i, caminho }) => ({ id: i, caminho }))} />

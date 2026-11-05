@@ -34,7 +34,7 @@ export async function cadastrarItem(_estado: EstadoDoFormulario, dados: FormData
   await avisar(`${resultado.codigo} cadastrado.`);
   // "Salvar e cadastrar outro": abre um formulário novo, repetindo o que é igual.
   if (dados.get("depois") === "outro") redirect(`/inventario/novo?repetir=${resultado.codigo}`);
-  redirect(`/inventario/${resultado.codigo}`);
+  redirect(`/inventario?item=${resultado.codigo}`);
 }
 
 export async function salvarItem(
@@ -61,7 +61,7 @@ export async function salvarItem(
       ? "Alterações salvas."
       : `Alterações salvas. Com o novo tipo, ${resultado.codigoAntigo} virou ${resultado.codigo}.`,
   );
-  redirect(`/inventario/${resultado.codigo}`);
+  redirect(`/inventario?item=${resultado.codigo}`);
 }
 
 /** Exclui o item. Do painel lateral, volta para a lista em que ele estava (sem o painel). */

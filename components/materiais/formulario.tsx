@@ -133,7 +133,7 @@ export function FormularioDoMaterial({
         />
       </div>
       <div className="mt-6 flex justify-end gap-2">
-        <Link href={material ? `/materiais/${material.id}` : "/materiais"} className={classesDoBotao("secundario")}>
+        <Link href={material ? `/materiais?material=${material.id}` : "/materiais"} className={classesDoBotao("secundario")}>
           Cancelar
         </Link>
         <BotaoEnviar enviando="Salvando…">Salvar</BotaoEnviar>

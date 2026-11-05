@@ -10,8 +10,14 @@ import { GRUPOS, NOME_DO_GRUPO, type Grupo } from "@/lib/materiais/valores";
 
 import { Selecao } from "../inventario/busca-e-selecoes";
 
-/** Busca e filtro por grupo na lista de materiais. Escolher o grupo já aplica; a busca vale ao apertar Enter. */
-export function FiltrosDosMateriaisNaTela({ filtros }: { filtros: FiltrosDosMateriais }) {
+/** Busca e filtros por grupo e local na lista de materiais. Escolher o grupo já aplica; a busca vale ao apertar Enter. */
+export function FiltrosDosMateriaisNaTela({
+  filtros,
+  locais,
+}: {
+  filtros: FiltrosDosMateriais;
+  locais: Array<{ id: number; caminho: string }>;
+}) {
   const router = useRouter();
   const [busca, setBusca] = useState(filtros.busca ?? "");
 
@@ -70,6 +76,22 @@ export function FiltrosDosMateriaisNaTela({ filtros }: { filtros: FiltrosDosMate
         {GRUPOS.map((g) => (
           <option key={g} value={g}>
             {NOME_DO_GRUPO[g]}
+          </option>
+        ))}
+      </Selecao>
+
+      <Selecao
+        id="filtro-local-material"
+        name="local"
+        rotulo="Local"
+        ativa={Boolean(filtros.local)}
+        value={filtros.local ?? ""}
+        onChange={(e) => aplicar({ local: e.target.value ? Number(e.target.value) : undefined })}
+      >
+        <option value="">Todos os locais</option>
+        {locais.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.caminho}
           </option>
         ))}
       </Selecao>

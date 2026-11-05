@@ -18,7 +18,7 @@ export function TabelaDeItens({
   itens,
   mostrarUsuario = true,
   acao,
-  linkDoItem = (item) => `/inventario/${item.codigo}`,
+  linkDoItem = (item) => `/inventario?item=${item.codigo}`,
   selecionado,
 }: {
   itens: ItemComTipo[];

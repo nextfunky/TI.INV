@@ -8,8 +8,8 @@ import { Botao } from "../botao";
 import { BotaoEnviar } from "../botao-enviar";
 import { Confirmacao, Janela } from "../janela";
 
-/** "Excluir" na edição do material (só aparece para material que nunca teve saída). */
-export function ExcluirMaterial({ id, nome }: { id: number; nome: string }) {
+/** "Excluir" na edição e no painel do material (só aparece para material que nunca teve saída). */
+export function ExcluirMaterial({ id, nome, voltarPara = "/materiais" }: { id: number; nome: string; voltarPara?: string }) {
   const [aberta, setAberta] = useState(false);
   return (
     <>
@@ -23,7 +23,7 @@ export function ExcluirMaterial({ id, nome }: { id: number; nome: string }) {
           botoes={
             <>
               <Botao onClick={() => setAberta(false)}>Cancelar</Botao>
-              <form action={apagarMaterial.bind(null, id)}>
+              <form action={apagarMaterial.bind(null, id, voltarPara)}>
                 <BotaoEnviar variante="perigoSolido" enviando="Excluindo…">
                   Excluir
                 </BotaoEnviar>

@@ -1,4 +1,4 @@
-import { ChevronRight, Folder, List, Pencil } from "lucide-react";
+import { Boxes, ChevronRight, Folder, List, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,7 +16,12 @@ import { obterBanco } from "@/lib/db";
 import { comItem, itemDoEndereco } from "@/lib/itens/painel";
 import { caminhoDeCima } from "@/lib/locais/arvore";
 import { contagensDosLocais, itensSemUsuarioDoLocal, listarLocais, pessoasDoLocal } from "@/lib/locais/servico";
+import { nomeDoMaterial } from "@/lib/materiais/nomes";
+import { materiaisDoLocal } from "@/lib/materiais/servico";
 import { juntar, plural } from "@/lib/texto/plural";
+
+/** Quantos itens sem usuário a página do local mostra (o resto, no Inventário). */
+const ITENS_NA_PAGINA = 20;
 
 export const metadata: Metadata = { title: "Local" };
 
@@ -57,13 +62,22 @@ async function Local({ params, searchParams }: Pick<Props, "params" | "searchPar
   const local = locais.find((l) => l.id === id);
   if (!local) notFound();
 
-  const [pessoas, itens] = await Promise.all([pessoasDoLocal(db, id), itensSemUsuarioDoLocal(db, id)]);
+  const [pessoas, itens, materiais] = await Promise.all([
+    pessoasDoLocal(db, id),
+    itensSemUsuarioDoLocal(db, id),
+    materiaisDoLocal(db, id),
+  ]);
+  // Com muitos itens, a página mostra um resumo por tipo e só os primeiros; o resto fica no Inventário.
+  const itensNaPagina = itens.slice(0, ITENS_NA_PAGINA);
+  const porTipo = [...itens.reduce((m, i) => m.set(i.tipo.nome, (m.get(i.tipo.nome) ?? 0) + 1), new Map<string, number>())].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"),
+  );
   const filhos = locais.filter((l) => l.paiId === id);
   const lista = `/locais/${id}`;
   const aberto = itemDoEndereco(await searchParams);
   const painel = aberto ? (
     <Suspense key={aberto} fallback={<PainelCarregando />}>
-      <PainelDoItem codigo={aberto} lista={lista} codigos={itens.map((i) => i.codigo)} />
+      <PainelDoItem codigo={aberto} lista={lista} codigos={itensNaPagina.map((i) => i.codigo)} />
     </Suspense>
   ) : null;
   const deCima = caminhoDeCima(local.caminho);
@@ -175,12 +189,25 @@ async function Local({ params, searchParams }: Pick<Props, "params" | "searchPar
 
       <Bloco titulo="Itens sem usuário" acao={<TrazerItens localId={id} nome={local.nome} />}>
         {itens.length ? (
-          <TabelaDeItens
-            itens={itens}
-            mostrarUsuario={false}
-            linkDoItem={(item) => comItem(lista, item.codigo)}
-            selecionado={aberto}
-          />
+          <>
+            {porTipo.length > 1 ? (
+              <p className="mb-3 px-6 text-13 text-gray-600">{porTipo.map(([tipo, n]) => `${n} ${tipo}`).join(" · ")}</p>
+            ) : null}
+            <TabelaDeItens
+              itens={itensNaPagina}
+              mostrarUsuario={false}
+              linkDoItem={(item) => comItem(lista, item.codigo)}
+              selecionado={aberto}
+            />
+            {itens.length > itensNaPagina.length ? (
+              <p className="mt-3 flex flex-wrap items-center justify-between gap-2 px-6 text-13 text-gray-500">
+                Mostrando {itensNaPagina.length} de {itens.length}.
+                <Link href={`/inventario?local=${id}`} className="font-medium text-accent hover:text-accent-forte">
+                  Ver todos no Inventário
+                </Link>
+              </p>
+            ) : null}
+          </>
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white">
             <p className="px-6 py-5 text-gray-500">
@@ -188,6 +215,43 @@ async function Local({ params, searchParams }: Pick<Props, "params" | "searchPar
             </p>
           </div>
         )}
+      </Bloco>
+
+      <Bloco
+        titulo="Materiais"
+        acao={
+          materiais.total ? (
+            <Link href={`/materiais?local=${id}`} className={classesDoBotao("secundario")}>
+              <Boxes aria-hidden="true" />
+              Ver os {plural(materiais.total, "material", "materiais")}
+            </Link>
+          ) : null
+        }
+      >
+        <div className="rounded-xl border border-gray-200 bg-white">
+          {materiais.total ? (
+            <>
+              <p className="border-b border-gray-100 px-6 py-3 text-13 text-gray-500">
+                {plural(materiais.total, "material", "materiais")} · {plural(materiais.unidades, "unidade", "unidades")}. Os de maior quantidade:
+              </p>
+              <ul>
+                {materiais.maiores.map((m) => (
+                  <li key={m.id} className="border-b border-gray-100 last:border-b-0">
+                    <Link
+                      href={`/materiais?material=${m.id}`}
+                      className="flex min-h-12 items-center gap-3 px-6 py-2 transition-colors duration-150 hover:bg-gray-50"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{nomeDoMaterial(m)}</span>
+                      <span className="font-mono text-13 tabular-nums">{m.quantidade.toLocaleString("pt-BR")}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="px-6 py-5 text-gray-500">Nenhum material guardado aqui.</p>
+          )}
+        </div>
       </Bloco>
       </ComPainel>
     </>

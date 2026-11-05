@@ -69,7 +69,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
       <Trilha
         partes={[
           { rotulo: "Inventário", href: "/inventario" },
-          { rotulo: item.codigo, href: `/inventario/${item.codigo}`, mono: true },
+          { rotulo: item.codigo, href: `/inventario?item=${item.codigo}`, mono: true },
           { rotulo: "Editar" },
         ]}
       />

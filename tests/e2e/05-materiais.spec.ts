@@ -25,11 +25,15 @@ test.afterEach(() => {
 const salvar = (page: Page) => page.getByRole("button", { name: "Salvar", exact: true }).click();
 const aviso = (page: Page) => page.getByRole("status");
 const estoque = (page: Page) => page.getByRole("region", { name: "Estoque" });
+const painel = (page: Page) => page.getByRole("complementary", { name: /^Detalhes de / });
+const historico = (page: Page) => page.getByRole("list", { name: "Histórico do material" }).getByRole("listitem");
 
+/** Abre o painel do material, ao lado da lista. */
 async function abrirMaterial(page: Page, nome: string) {
   await page.goto("/materiais");
   await page.getByRole("link", { name: nome, exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(nome);
+  await expect(page).toHaveURL(/\/materiais\?material=\d+$/);
+  await expect(painel(page).getByRole("heading", { level: 2 })).toHaveText(nome);
 }
 
 test("cadastra um material com a quantidade que já existe", async ({ page }) => {
@@ -54,19 +58,24 @@ test("cadastra um material com a quantidade que já existe", async ({ page }) =>
   await page.getByLabel("Quantidade").fill("3");
   await salvar(page);
 
-  await expect(page).toHaveURL(/\/materiais\/\d+$/);
-  await expect(aviso(page)).toHaveText("Cadastro de Cabo HDMI criado.");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cabo HDMI");
-  await expect(page.getByText("Genérico 2 metros · Cabos · Novo")).toBeVisible();
+  // Salvar abre a lista com o painel do material.
+  await expect(page).toHaveURL(/\/materiais\?material=\d+$/);
+  await expect(aviso(page)).toHaveText("Cadastro de Cabo HDMI · Genérico 2 metros criado.");
+  await expect(painel(page)).toHaveAccessibleName("Detalhes de Cabo HDMI · Genérico 2 metros");
+  await expect(painel(page)).toContainText("Genérico 2 metros · Novo");
   await expect(estoque(page)).toContainText(/^3\s*em estoque\s*Matriz › Estoque da TI/);
-  await expect(page.getByRole("row", { name: /Quantidade no cadastro/ })).toContainText("+3");
+  await expect(historico(page)).toHaveCount(1);
+  await expect(historico(page).first()).toContainText("+3");
+  await expect(historico(page).first()).toContainText("Quantidade no cadastro");
+  // Na lista, o material fica sob o título do grupo.
+  await expect(page.getByRole("rowheader", { name: /Cabos · 1/ }).or(page.getByRole("columnheader", { name: /Cabos · 1/ }))).toBeVisible();
 });
 
 test("entrada, saída e ajuste de contagem mudam o saldo e ficam no histórico", async ({ page }) => {
   await abrirMaterial(page, "Cabo HDMI");
 
   await estoque(page).getByRole("button", { name: "Entrada" }).click();
-  let janela = page.getByRole("dialog", { name: "Entrada: Cabo HDMI" });
+  let janela = page.getByRole("dialog", { name: "Entrada: Cabo HDMI · Genérico 2 metros" });
   await janela.getByLabel("Quantos chegaram").fill("5");
   await janela.getByLabel("Observação").fill("Compra de novembro");
   await janela.getByRole("button", { name: "Registrar entrada" }).click();
@@ -75,7 +84,7 @@ test("entrada, saída e ajuste de contagem mudam o saldo e ficam no histórico",
   await expect(estoque(page)).toContainText(/^8\s*em estoque/);
 
   await estoque(page).getByRole("button", { name: "Saída" }).click();
-  janela = page.getByRole("dialog", { name: "Saída: Cabo HDMI" });
+  janela = page.getByRole("dialog", { name: "Saída: Cabo HDMI · Genérico 2 metros" });
   await janela.getByLabel("Quantos saíram").fill("10");
   await janela.getByRole("button", { name: "Registrar saída" }).click();
   await expect(janela.getByText("Só há 8 em estoque.")).toBeVisible();
@@ -86,7 +95,7 @@ test("entrada, saída e ajuste de contagem mudam o saldo e ficam no histórico",
   await expect(estoque(page)).toContainText(/^6\s*em estoque/);
 
   await estoque(page).getByRole("button", { name: "Ajustar contagem" }).click();
-  janela = page.getByRole("dialog", { name: "Ajustar contagem: Cabo HDMI" });
+  janela = page.getByRole("dialog", { name: "Ajustar contagem: Cabo HDMI · Genérico 2 metros" });
   await janela.getByLabel("Quantos você contou").fill("6");
   await janela.getByRole("button", { name: "Ajustar" }).click();
   await expect(janela.getByText("O saldo já é 6. Nada para ajustar.")).toBeVisible();
@@ -94,18 +103,19 @@ test("entrada, saída e ajuste de contagem mudam o saldo e ficam no histórico",
   await janela.getByRole("button", { name: "Ajustar" }).click();
   await expect(aviso(page)).toHaveText("Contagem ajustada (1 a menos). Agora há 5 em estoque.");
 
-  const historico = page.getByRole("table");
-  await expect(historico.getByRole("row")).toHaveCount(5); // cabeçalho + 4 movimentos
-  await expect(historico.getByRole("row").nth(1)).toContainText("Ajuste de contagem");
-  await expect(historico.getByRole("row").nth(1)).toContainText("−1");
-  await expect(historico.getByRole("row").nth(2)).toContainText("Ana Paula");
-  await expect(historico.getByRole("row").nth(2)).toContainText("−2");
-  await expect(historico.getByRole("row").nth(3)).toContainText("Compra de novembro");
+  // Tudo aconteceu sem sair da lista: o painel continua aberto.
+  await expect(page).toHaveURL(/\/materiais\?material=\d+$/);
+  await expect(historico(page)).toHaveCount(4);
+  await expect(historico(page).nth(0)).toContainText("Ajuste de contagem");
+  await expect(historico(page).nth(0)).toContainText("−1");
+  await expect(historico(page).nth(1)).toContainText("Ana Paula");
+  await expect(historico(page).nth(1)).toContainText("−2");
+  await expect(historico(page).nth(2)).toContainText("Compra de novembro");
 });
 
 test("a pessoa vê o que recebeu, e quem recebeu material não pode ser excluído", async ({ page }) => {
   await abrirMaterial(page, "Cabo HDMI");
-  await page.getByRole("link", { name: "Ana Paula" }).click();
+  await painel(page).getByRole("link", { name: "Ana Paula" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ana Paula");
   const bloco = page.getByRole("region", { name: "Materiais entregues" });
   await expect(bloco.getByRole("row", { name: /Cabo HDMI/ })).toContainText("2");
@@ -118,24 +128,31 @@ test("a lista busca e filtra por grupo; só exclui material sem saída", async (
   await page.getByLabel("Marca / modelo").fill("HP 85A");
   await page.getByLabel("Grupo").selectOption({ label: "Impressão" });
   await salvar(page);
-  await expect(page).toHaveURL(/\/materiais\/\d+$/);
+  await expect(page).toHaveURL(/\/materiais\?material=\d+$/);
   await expect(estoque(page)).toContainText(/^0\s*em estoque\s*Sem local definido/);
   await expect(estoque(page).getByRole("button", { name: "Saída" })).toBeDisabled();
   await expect(page.getByText("Nenhum movimento ainda.")).toBeVisible();
 
   await page.goto("/materiais");
   await expect(page.getByText("2 materiais · 5 unidades em estoque")).toBeVisible();
-  await expect(page.getByRole("row")).toHaveCount(3);
+  await expect(page.getByRole("row")).toHaveCount(5); // cabeçalho + 2 grupos + 2 materiais
   await page.getByLabel("Grupo").selectOption({ label: "Impressão" });
   await expect(page).toHaveURL(/grupo=impressao/);
-  await expect(page.getByRole("row")).toHaveCount(2);
+  await expect(page.getByRole("row")).toHaveCount(3);
   await expect(page.getByRole("row", { name: /Toner/ })).toBeVisible();
 
   await page.goto("/materiais");
   await page.getByLabel("Buscar materiais").fill("estoque da ti");
   await page.getByLabel("Buscar materiais").press("Enter");
   await expect(page).toHaveURL(/q=estoque/);
-  await expect(page.getByRole("row")).toHaveCount(2);
+  await expect(page.getByRole("row")).toHaveCount(3);
+
+  // O filtro por local também acha o material.
+  await page.goto("/materiais");
+  await page.getByLabel("Local", { exact: true }).selectOption({ label: "Matriz › Estoque da TI" });
+  await expect(page).toHaveURL(/local=\d+/);
+  await expect(page.getByRole("row", { name: /Cabo HDMI/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Toner/ })).toHaveCount(0);
   await expect(page.getByRole("row", { name: /Cabo HDMI/ })).toBeVisible();
 
   await page.goto("/materiais?q=nada-assim");
@@ -143,18 +160,19 @@ test("a lista busca e filtra por grupo; só exclui material sem saída", async (
 
   // Cabo HDMI teve saída: o cadastro fica.
   await abrirMaterial(page, "Cabo HDMI");
-  await page.getByRole("link", { name: "Editar" }).click();
+  await expect(painel(page).getByRole("button", { name: "Excluir" })).toHaveCount(0);
+  await painel(page).getByRole("link", { name: "Editar" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Editar material");
   await expect(page.getByLabel("Quantidade")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Excluir" })).toHaveCount(0);
 
+  // Toner nunca teve saída: dá para excluir direto do painel.
   await abrirMaterial(page, "Toner");
-  await page.getByRole("link", { name: "Editar" }).click();
-  await page.getByRole("button", { name: "Excluir" }).click();
-  await page.getByRole("dialog", { name: "Excluir Toner" }).getByRole("button", { name: "Excluir" }).click();
+  await painel(page).getByRole("button", { name: "Excluir" }).click();
+  await page.getByRole("dialog", { name: "Excluir Toner · HP 85A" }).getByRole("button", { name: "Excluir" }).click();
   await expect(page).toHaveURL(/\/materiais$/);
-  await expect(aviso(page)).toHaveText("Cadastro de Toner excluído.");
-  await expect(page.getByRole("row")).toHaveCount(2);
+  await expect(aviso(page)).toHaveText("Cadastro de Toner · HP 85A excluído.");
+  await expect(page.getByRole("row")).toHaveCount(3);
 });
 
 test("um local com material não pode ser excluído", async ({ page }) => {
@@ -166,10 +184,11 @@ test("no celular (390px), as telas de materiais não rolam para o lado", async (
   await page.setViewportSize({ width: 390, height: 844 });
   await abrirMaterial(page, "Cabo HDMI");
   const material = page.url();
-  await page.getByRole("link", { name: "Ana Paula" }).click();
+  const editar = `/materiais/${new URL(material).searchParams.get("material")}/editar`;
+  await painel(page).getByRole("link", { name: "Ana Paula" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ana Paula");
   const pessoa = page.url();
-  for (const caminho of ["/materiais", "/materiais/novo", material, `${material}/editar`, pessoa]) {
+  for (const caminho of ["/materiais", "/materiais/novo", material, editar, pessoa]) {
     await page.goto(caminho);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth), caminho).toBeLessThanOrEqual(390);

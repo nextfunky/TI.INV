@@ -52,10 +52,11 @@ test("escolher a pessoa num item em estoque passa o status para Em uso", async (
   await page.getByLabel("Condição").selectOption("bom");
   await salvar(page);
 
-  await expect(page).toHaveURL(/\/inventario\/MON0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=MON0001$/);
   const cartao = page.getByRole("complementary");
   await expect(cartao.getByRole("link", { name: "Ana Paula" })).toBeVisible();
-  await expect(cartao.getByText("Nenhum outro item com esta pessoa.")).toBeVisible();
+  // Sem outros itens com a pessoa, o bloco "Também com" nem aparece.
+  await expect(cartao.getByText(/^Também com/)).toHaveCount(0);
   await expect(page.getByRole("definition").filter({ hasText: /^Bom$/ })).toBeVisible();
 });
 
@@ -80,7 +81,7 @@ test("'+ Novo colaborador' cadastra sem sair do formulário de item", async ({ p
   await expect(page.getByLabel("Marca")).toHaveValue("Logitech"); // nada se perdeu
 
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/MOU0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=MOU0001$/);
   await expect(page.getByRole("complementary").getByRole("link", { name: "João Lima" })).toBeVisible();
 });
 
@@ -88,7 +89,7 @@ test("'Também com' e a página da pessoa mostram os itens dela", async ({ page 
   await page.goto("/inventario/TEC0002/editar");
   await page.getByLabel("Usuário").selectOption({ label: "João Lima" });
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/TEC0002$/);
+  await expect(page).toHaveURL(/\/inventario\?item=TEC0002$/);
 
   await page.goto("/inventario/MOU0001");
   const lateral = page.getByRole("complementary");

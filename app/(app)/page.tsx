@@ -8,6 +8,8 @@ import { Ponto } from "@/components/status";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { cx } from "@/lib/classes";
 import { obterBanco } from "@/lib/db";
+import { nomeDoMaterial } from "@/lib/materiais/nomes";
+import { materiaisZerados, resumoDosMateriais } from "@/lib/materiais/servico";
 import { textoPorCategoria } from "@/lib/itens/consultas";
 import { avisoDeGarantia } from "@/lib/itens/garantia";
 import { painelDoInicio } from "@/lib/itens/inicio";
@@ -43,13 +45,13 @@ function Numero({
   detalhe: string;
 }) {
   return (
-    <Link href={href} className="flex flex-col gap-2 bg-white p-6 transition-colors duration-150 hover:bg-gray-50">
+    <Link href={href} className="flex flex-col gap-1.5 bg-white p-4 transition-colors duration-150 hover:bg-gray-50 sm:gap-2 sm:p-6">
       <span className="flex items-center gap-2 text-13 text-gray-500">
         {status ? <Ponto status={status} /> : null}
         {rotulo}
       </span>
-      <span className="text-32 font-semibold tracking-[-0.02em] tabular-nums">{numero}</span>
-      <span className="min-h-[18px] truncate text-13 text-gray-500">{detalhe}</span>
+      <span className="text-2xl font-semibold tracking-[-0.02em] tabular-nums sm:text-32">{numero.toLocaleString("pt-BR")}</span>
+      <span className="min-h-[18px] text-13 text-gray-500">{detalhe}</span>
     </Link>
   );
 }
@@ -95,7 +97,8 @@ async function Painel() {
   await exigirSessao();
   const agora = new Date();
   const hoje = hojeEmSaoPaulo(agora);
-  const p = await painelDoInicio(obterBanco(), hoje);
+  const db = obterBanco();
+  const [p, materiais, zerados] = await Promise.all([painelDoInicio(db, hoje), resumoDosMateriais(db), materiaisZerados(db)]);
 
   const manutencao = p.itensEmManutencao;
   const temAtencao = p.emManutencao > 0 || p.garantias.length > 0;
@@ -106,7 +109,7 @@ async function Painel() {
 
       <section
         aria-label="Resumo"
-        className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-100"
+        className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-100 lg:grid-cols-4"
       >
         <Numero
           href="/inventario"
@@ -122,7 +125,7 @@ async function Painel() {
           detalhe={
             p.pessoasComItensEmUso
               ? `com ${plural(p.pessoasComItensEmUso, "colaborador", "colaboradores")}`
-              : ""
+              : "nenhum item com alguém ainda"
           }
         />
         <Numero
@@ -144,7 +147,8 @@ async function Painel() {
       </section>
 
       <div className="mt-10 flex flex-wrap items-start gap-6">
-        <section aria-labelledby="titulo-atencao" className="min-w-0 flex-[999_1_520px]">
+        <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-10">
+        <section aria-labelledby="titulo-atencao">
           <h2 id="titulo-atencao" className="px-6 pb-3 text-base font-semibold">
             Precisa de atenção
           </h2>
@@ -153,7 +157,7 @@ async function Painel() {
               <ul className="p-2">
                 {p.emManutencao > 0 ? (
                   <LinhaDeAtencao
-                    href={p.emManutencao === 1 ? `/inventario/${manutencao[0].codigo}` : "/inventario?status=em_manutencao"}
+                    href={p.emManutencao === 1 ? `/inventario?item=${manutencao[0].codigo}` : "/inventario?status=em_manutencao"}
                     icone={<Wrench aria-hidden="true" />}
                     destaque
                     titulo={`${plural(p.emManutencao, "item", "itens")} em manutenção`}
@@ -167,7 +171,7 @@ async function Painel() {
                 {p.garantias.map((item) => (
                   <LinhaDeAtencao
                     key={item.id}
-                    href={`/inventario/${item.codigo}`}
+                    href={`/inventario?item=${item.codigo}`}
                     icone={<Shield aria-hidden="true" />}
                     titulo={avisoDeGarantia(item.garantiaAte!, hoje)}
                     detalhe={juntar(item.codigo, tituloDoItem(item), `até ${formatarData(item.garantiaAte!)}`)}
@@ -190,6 +194,49 @@ async function Painel() {
           </div>
         </section>
 
+        <section aria-labelledby="titulo-materiais">
+          <div className="flex items-baseline justify-between gap-3 px-6 pb-3">
+            <h2 id="titulo-materiais" className="text-base font-semibold">
+              Materiais
+            </h2>
+            <Link href="/materiais" className="text-13 font-medium text-accent hover:text-accent-forte">
+              Ver materiais
+            </Link>
+          </div>
+          <div className={CARTAO}>
+            {materiais.materiais ? (
+              <div className="px-6 py-4">
+                <p>
+                  <span className="font-medium">{plural(materiais.materiais, "material", "materiais")}</span>
+                  <span className="text-gray-500"> · {plural(materiais.unidades, "unidade em estoque", "unidades em estoque")}</span>
+                </p>
+                {zerados.total ? (
+                  <div className="mt-3">
+                    <p className="text-13 text-gray-500">Sem estoque ({zerados.total}):</p>
+                    <ul className="mt-1 flex flex-col">
+                      {zerados.lista.map((m) => (
+                        <li key={m.id}>
+                          <Link href={`/materiais?material=${m.id}`} className="block truncate py-0.5 hover:text-accent">
+                            {nomeDoMaterial(m)}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    {zerados.total > zerados.lista.length ? (
+                      <p className="mt-1 text-13 text-gray-500">e mais {zerados.total - zerados.lista.length}.</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-13 text-gray-500">Nenhum material zerado.</p>
+                )}
+              </div>
+            ) : (
+              <p className="px-6 py-5 text-gray-500">Nenhum material cadastrado ainda.</p>
+            )}
+          </div>
+        </section>
+        </div>
+
         <section aria-labelledby="titulo-recentes" className="min-w-0 flex-[1_1_320px]">
           <h2 id="titulo-recentes" className="px-6 pb-3 text-base font-semibold">
             Atualizados recentemente
@@ -200,7 +247,7 @@ async function Painel() {
                 {p.recentes.map((item) => (
                   <li key={item.id}>
                     <Link
-                      href={`/inventario/${item.codigo}`}
+                      href={`/inventario?item=${item.codigo}`}
                       className="flex gap-3 rounded-lg px-3 py-2 transition-colors duration-150 hover:bg-gray-50"
                     >
                       <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-gray-300" />

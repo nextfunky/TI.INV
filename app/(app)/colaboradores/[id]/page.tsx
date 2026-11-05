@@ -170,7 +170,7 @@ async function Pessoa({ params, searchParams }: Pick<Props, "params" | "searchPa
                       {formatarDataHora(m.criadoEm)}
                     </td>
                     <td className="py-3 pr-4 align-top">
-                      <Link href={`/materiais/${m.material.id}`} className="font-medium text-gray-900 hover:text-accent">
+                      <Link href={`/materiais?material=${m.material.id}`} className="font-medium text-gray-900 hover:text-accent">
                         {m.material.nome}
                       </Link>
                       {m.material.marcaModelo ? <p className="text-13 text-gray-500">{m.material.marcaModelo}</p> : null}

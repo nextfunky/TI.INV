@@ -1,10 +1,12 @@
-import { and, asc, count, desc, eq, ilike, or, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql, sum } from "drizzle-orm";
 
 import { colaboradores, locais, materiais, movimentosDeMaterial } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
+import { comOsDeDentro } from "@/lib/locais/arvore";
 
 import type { DadosDoMaterial } from "./regras";
 import type { FiltrosDosMateriais } from "./filtros";
+import { nomeDoMaterial } from "./nomes";
 
 /**
  * As regras dos materiais (o que é controlado por quantidade).
@@ -74,11 +76,15 @@ export async function excluirMaterial(
   db: Banco,
   id: number,
 ): Promise<{ excluido: true; nome: string } | { excluido: false; motivo: "tem_saidas" | "nao_encontrado"; nome?: string }> {
-  const [material] = await db.select({ nome: materiais.nome }).from(materiais).where(eq(materiais.id, id));
+  const [material] = await db
+    .select({ nome: materiais.nome, marcaModelo: materiais.marcaModelo })
+    .from(materiais)
+    .where(eq(materiais.id, id));
   if (!material) return { excluido: false, motivo: "nao_encontrado" };
-  if ((await totalDeSaidas(db, id)) > 0) return { excluido: false, motivo: "tem_saidas", nome: material.nome };
+  const nome = nomeDoMaterial(material);
+  if ((await totalDeSaidas(db, id)) > 0) return { excluido: false, motivo: "tem_saidas", nome };
   await db.delete(materiais).where(eq(materiais.id, id));
-  return { excluido: true, nome: material.nome };
+  return { excluido: true, nome };
 }
 
 function escaparBusca(termo: string): string {
@@ -88,6 +94,8 @@ function escaparBusca(termo: string): string {
 /** A lista de materiais, por grupo (na ordem da lista) e por nome. A busca olha o nome, a marca/modelo e o local. */
 export async function listarMateriais(db: Banco, filtros: FiltrosDosMateriais = {}) {
   const termo = filtros.busca ? `%${escaparBusca(filtros.busca)}%` : null;
+  const arvore = filtros.local ? await db.select({ id: locais.id, nome: locais.nome, paiId: locais.paiId }).from(locais) : [];
+  const doLocal = filtros.local ? comOsDeDentro(arvore, filtros.local) : null;
   return db
     .select({
       id: materiais.id,
@@ -103,6 +111,7 @@ export async function listarMateriais(db: Banco, filtros: FiltrosDosMateriais = 
     .where(
       and(
         filtros.grupo ? eq(materiais.grupo, filtros.grupo) : undefined,
+        doLocal ? inArray(materiais.localId, doLocal) : undefined,
         termo ? or(ilike(materiais.nome, termo), ilike(materiais.marcaModelo, termo), ilike(locais.caminho, termo)) : undefined,
       ),
     )
@@ -115,6 +124,28 @@ export async function resumoDosMateriais(db: Banco): Promise<{ materiais: number
     .select({ materiais: count(), unidades: sum(materiais.quantidade).mapWith(Number) })
     .from(materiais);
   return { materiais: linha.materiais, unidades: linha.unidades ?? 0 };
+}
+
+/** Quantos materiais e unidades há num local (somando os departamentos de dentro), e os de maior quantidade. */
+export async function materiaisDoLocal(db: Banco, localId: number, quantos = 8) {
+  const lista = await listarMateriais(db, { local: localId });
+  return {
+    total: lista.length,
+    unidades: lista.reduce((s, m) => s + m.quantidade, 0),
+    maiores: [...lista].sort((a, b) => b.quantidade - a.quantidade).slice(0, quantos),
+  };
+}
+
+/** Os materiais que zeraram (para o Início). */
+export async function materiaisZerados(db: Banco, quantos = 5) {
+  const [{ total }] = await db.select({ total: count() }).from(materiais).where(eq(materiais.quantidade, 0));
+  const lista = await db
+    .select({ id: materiais.id, nome: materiais.nome, marcaModelo: materiais.marcaModelo })
+    .from(materiais)
+    .where(eq(materiais.quantidade, 0))
+    .orderBy(desc(materiais.atualizadoEm))
+    .limit(quantos);
+  return { total, lista };
 }
 
 /** Um material, com o caminho do local e se já teve alguma saída. */

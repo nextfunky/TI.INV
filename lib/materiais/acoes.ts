@@ -7,7 +7,11 @@ import { exigirSessao } from "@/lib/auth/sessao";
 import { avisar } from "@/lib/aviso";
 import { obterBanco } from "@/lib/db";
 import { errosPorCampo, lerFormulario, type EstadoDoFormulario } from "@/lib/formulario";
+import { enderecoInterno } from "@/lib/itens/painel";
 import { plural } from "@/lib/texto/plural";
+
+import { comMaterial } from "./filtros";
+import { nomeDoMaterial } from "./nomes";
 
 import { CAMPOS_DO_MATERIAL, regrasDaEntrada, regrasDaSaida, regrasDoAjuste, regrasDoMaterial, regrasDoNovoMaterial } from "./regras";
 import {
@@ -36,8 +40,8 @@ export async function cadastrarMaterial(_estado: EstadoDoFormulario, dados: Form
   if (!resultado.criado) return { erros: resultado.erros, valores };
 
   atualizarTelas();
-  await avisar(`Cadastro de ${resultado.material.nome} criado.`);
-  redirect(`/materiais/${resultado.material.id}`);
+  await avisar(`Cadastro de ${nomeDoMaterial(resultado.material)} criado.`);
+  redirect(comMaterial("/materiais", resultado.material.id));
 }
 
 export async function salvarMaterial(id: number, _estado: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> {
@@ -55,19 +59,20 @@ export async function salvarMaterial(id: number, _estado: EstadoDoFormulario, da
 
   atualizarTelas();
   await avisar("Alterações salvas.");
-  redirect(`/materiais/${id}`);
+  redirect(comMaterial("/materiais", id));
 }
 
-export async function apagarMaterial(id: number): Promise<void> {
+/** Exclui o material. Do painel lateral, volta para a lista em que ele estava (sem o painel). */
+export async function apagarMaterial(id: number, voltarPara?: string): Promise<void> {
   await exigirSessao();
   const resultado = await excluirMaterial(obterBanco(), id);
   if (!resultado.excluido && resultado.motivo === "tem_saidas") {
     await avisar(`${resultado.nome} já teve saídas. O cadastro fica, para guardar o histórico.`, "erro");
-    redirect(`/materiais/${id}`);
+    redirect(comMaterial("/materiais", id));
   }
   atualizarTelas();
   await avisar(resultado.excluido ? `Cadastro de ${resultado.nome} excluído.` : NAO_ENCONTRADO);
-  redirect("/materiais");
+  redirect(enderecoInterno(voltarPara) ?? "/materiais");
 }
 
 /** O que as janelas de Entrada, Saída e Ajuste recebem de volta. */

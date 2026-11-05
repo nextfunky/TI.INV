@@ -68,10 +68,10 @@ test("cadastra um desktop, e 'Salvar e cadastrar outro' repete o que é igual", 
   await page.getByLabel("Nº de série").fill("BR7X9K3");
   await page.getByLabel("Hostname").fill("FIN-PC-04");
   await page.getByLabel("Hostname").press("Enter");
-  await expect(page).toHaveURL(/\/inventario\/DSK0002$/);
+  await expect(page).toHaveURL(/\/inventario\?item=DSK0002$/);
   await expect(aviso(page)).toHaveText("DSK0002 cadastrado.");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("FIN-PC-04");
-  await expect(page).toHaveTitle("DSK0002 · Inventário de TI");
+  // Salvar volta para a lista, com o painel do item aberto.
+  await expect(page.getByRole("complementary", { name: "Detalhes de DSK0002" }).getByRole("heading", { level: 2 })).toHaveText("FIN-PC-04");
 });
 
 test("um monitor não tem a seção Computador, e o formulário avisa o que falta", async ({ page }) => {
@@ -89,8 +89,8 @@ test("um monitor não tem a seção Computador, e o formulário avisa o que falt
   await page.getByLabel("Garantia até").fill("2027-03-15");
   await salvar(page);
 
-  await expect(page).toHaveURL(/\/inventario\/MON0001$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dell P2422H");
+  await expect(page).toHaveURL(/\/inventario\?item=MON0001$/);
+  await expect(page.getByRole("complementary", { name: "Detalhes de MON0001" }).getByRole("heading", { level: 2 })).toHaveText("Dell P2422H");
   await expect(page.getByRole("heading", { name: "Computador" })).toHaveCount(0);
   await expect(page.getByText("15/03/2027")).toBeVisible();
 });
@@ -102,10 +102,12 @@ test("mudar o tipo dá um código novo", async ({ page }) => {
   await page.getByLabel("Status").selectOption("em_manutencao");
   await salvar(page);
 
-  await expect(page).toHaveURL(/\/inventario\/NTB0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=NTB0001$/);
   await expect(aviso(page)).toHaveText("Alterações salvas. Com o novo tipo, DSK0002 virou NTB0001.");
+  // O endereço antigo abre o painel, avisando que o código não existe mais.
   await page.goto("/inventario/DSK0002");
-  await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
+  await expect(page).toHaveURL(/\/inventario\?item=DSK0002$/);
+  await expect(page.getByRole("complementary")).toContainText("O item DSK0002 não existe mais.");
 });
 
 test("a busca rápida (Ctrl+K) acha o item e abre o painel dele", async ({ page }) => {
@@ -135,7 +137,7 @@ test("o Inventário filtra, resume e a linha inteira abre o painel do item", asy
   await page.getByLabel("Tipo").selectOption({ label: "Teclado" });
   await page.getByLabel("Status").selectOption("descartado");
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/TEC0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=TEC0001$/);
 
   await page.goto("/inventario");
   await expect(page.getByRole("heading", { name: "Inventário" })).toBeVisible();
@@ -176,7 +178,7 @@ test("o painel lateral: setas, Esc, Editar e Excluir", async ({ page }) => {
   await page.getByLabel("Tipo").selectOption({ label: "Webcam" });
   await page.getByLabel("Marca").fill("Logitech");
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/WEB0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=WEB0001$/);
 
   await page.goto("/inventario?categoria=periferico");
   await page.getByRole("link", { name: "Dell P2422H" }).click();
@@ -227,7 +229,7 @@ test("excluir pede confirmação, e o código não volta a ser usado", async ({ 
   await page.goto("/inventario/novo");
   await page.getByLabel("Tipo").selectOption({ label: "Teclado" });
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/TEC0002$/);
+  await expect(page).toHaveURL(/\/inventario\?item=TEC0002$/);
 });
 
 test("tipos de item: criar, travar a categoria do computador e excluir", async ({ page }) => {

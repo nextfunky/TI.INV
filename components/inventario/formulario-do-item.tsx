@@ -281,7 +281,7 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, inic
           <BotaoEnviar enviando="Salvando…" className="order-last">
             Salvar
           </BotaoEnviar>
-          <Link href={item ? `/inventario/${item.codigo}` : "/inventario"} className={classesDoBotao("secundario")}>
+          <Link href={item ? `/inventario?item=${item.codigo}` : "/inventario"} className={classesDoBotao("secundario")}>
             Cancelar
           </Link>
           {item ? null : (

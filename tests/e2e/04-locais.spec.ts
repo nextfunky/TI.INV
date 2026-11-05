@@ -140,7 +140,7 @@ test("o item sem usuário tem local próprio; com usuário, fica onde a pessoa e
   await page.goto("/inventario/DSK0001/editar");
   await page.getByLabel("Local").selectOption({ label: "Filial 04 › Estoque da TI" });
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/DSK0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=DSK0001$/);
   await expect(page.getByRole("complementary").getByRole("link", { name: "Estoque da TI" })).toBeVisible();
 
   await page.goto("/inventario/DSK0001/editar");
@@ -168,7 +168,7 @@ test("na página do local, traz várias pessoas e itens de uma vez", async ({ pa
   await page.goto("/inventario/novo");
   await page.getByLabel("Tipo").selectOption({ label: "Teclado" });
   await salvar(page);
-  await expect(page).toHaveURL(/\/inventario\/TEC0003$/);
+  await expect(page).toHaveURL(/\/inventario\?item=TEC0003$/);
 
   await page.goto("/locais");
   await page.getByRole("link", { name: "Estoque da TI" }).click();

@@ -36,6 +36,10 @@ export function ComPainel({ painel, children }: { painel: ReactNode; children: R
   );
 }
 
+/** A caixa do painel: fixa à direita no computador; a tela inteira no celular. */
+export const MOLDURA_DO_PAINEL =
+  "fixed inset-0 z-30 overflow-y-auto bg-white lg:sticky lg:inset-auto lg:top-6 lg:z-auto lg:max-h-[calc(100dvh-3rem)] lg:w-[360px] lg:shrink-0 lg:rounded-xl lg:border lg:border-gray-200 xl:w-[400px]";
+
 /** Enquanto o painel carrega: o mesmo tamanho, sem conteúdo. */
 export function PainelCarregando() {
   return (
@@ -65,7 +69,7 @@ function Dado({ rotulo, vazio = "Não informado", mono, children }: { rotulo: st
   );
 }
 
-function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <section className="border-t border-gray-100 px-5 py-4">
       <h3 className="text-13 font-medium text-gray-500">{titulo}</h3>
@@ -87,8 +91,7 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
   const anterior = posicao > 0 ? comItem(lista, codigos[posicao - 1]) : undefined;
   const proximo = posicao >= 0 && posicao < codigos.length - 1 ? comItem(lista, codigos[posicao + 1]) : undefined;
 
-  const moldura =
-    "fixed inset-0 z-30 overflow-y-auto bg-white lg:sticky lg:inset-auto lg:top-6 lg:z-auto lg:max-h-[calc(100dvh-3rem)] lg:w-[360px] lg:shrink-0 lg:rounded-xl lg:border lg:border-gray-200 xl:w-[400px]";
+  const moldura = MOLDURA_DO_PAINEL;
 
   if (!item) {
     return (
@@ -248,6 +251,12 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
               </li>
             ))}
           </ul>
+          <Link
+            href={`/colaboradores/${item.usuario.id}`}
+            className="mt-2 inline-block text-13 font-medium text-accent transition-colors duration-150 hover:text-accent-forte"
+          >
+            Ver tudo com {item.usuario.nome}
+          </Link>
         </Bloco>
       ) : null}
 

@@ -55,7 +55,7 @@ test("lê a planilha, mostra a prévia e importa tudo", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText("Importação concluída: 4 itens e 1 material.");
 
   await page.goto("/inventario/TEL0002");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Cisco CP-7821");
+  await expect(page.getByRole("complementary", { name: "Detalhes de TEL0002" })).toContainText("Cisco CP-7821");
   await page.goto("/colaboradores");
   await expect(page.getByRole("link", { name: /Pessoa Nova Teste/ })).toContainText("1 item");
   await page.goto("/materiais?q=cat 6 azul");
