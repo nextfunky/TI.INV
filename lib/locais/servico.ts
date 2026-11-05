@@ -1,6 +1,6 @@
 import { and, count, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
-import { colaboradores, itens, locais } from "@/lib/db/schema";
+import { colaboradores, itens, locais, materiais } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 import { condicaoDeBusca, ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
 import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/servico";
@@ -155,15 +155,16 @@ class ErroDoFormulario extends Error {
 
 /** O que há diretamente no local (para saber se ele pode ser excluído). */
 async function conteudoDireto(db: Banco, id: number) {
-  const [[{ filhos }], [{ pessoas }], [{ itensNoLocal }]] = await Promise.all([
+  const [[{ filhos }], [{ pessoas }], [{ itensNoLocal }], [{ materiaisNoLocal }]] = await Promise.all([
     db.select({ filhos: count() }).from(locais).where(eq(locais.paiId, id)),
     db.select({ pessoas: count() }).from(colaboradores).where(eq(colaboradores.localId, id)),
     db.select({ itensNoLocal: count() }).from(itens).where(eq(itens.localId, id)),
+    db.select({ materiaisNoLocal: count() }).from(materiais).where(eq(materiais.localId, id)),
   ]);
-  return { filhos, pessoas, itens: itensNoLocal };
+  return { filhos, pessoas, itens: itensNoLocal, materiais: materiaisNoLocal };
 }
 
-/** Só exclui um local sem outros locais dentro, sem pessoas e sem itens (nem descartados). */
+/** Só exclui um local sem outros locais dentro, sem pessoas, sem itens (nem descartados) e sem materiais. */
 export async function excluirLocal(
   db: Banco,
   id: number,
@@ -171,7 +172,7 @@ export async function excluirLocal(
   const local = await obterLocal(db, id);
   if (!local) return { excluido: false, motivo: "nao_encontrado" };
   const conteudo = await conteudoDireto(db, id);
-  if (conteudo.filhos || conteudo.pessoas || conteudo.itens) return { excluido: false, motivo: "nao_vazio", caminho: local.caminho };
+  if (conteudo.filhos || conteudo.pessoas || conteudo.itens || conteudo.materiais) return { excluido: false, motivo: "nao_vazio", caminho: local.caminho };
   await db.delete(locais).where(eq(locais.id, id));
   return { excluido: true, caminho: local.caminho };
 }
@@ -181,7 +182,7 @@ export type ContagemDoLocal = {
   pessoas: number;
   /** Itens sem usuário (sem os descartados) no local e nos de dentro. */
   itensSemUsuario: number;
-  /** Nada dentro: nem locais, nem pessoas, nem itens (contando descartados). */
+  /** Nada dentro: nem locais, nem pessoas, nem itens (contando descartados), nem materiais. */
   vazio: boolean;
 };
 
@@ -202,6 +203,11 @@ export async function contagensDosLocais(db: Banco): Promise<Map<number, Contage
     .from(itens)
     .where(sql`${itens.localId} is not null`)
     .groupBy(itens.localId);
+  const comMateriais = new Set(
+    (await db.selectDistinct({ localId: materiais.localId }).from(materiais).where(sql`${materiais.localId} is not null`)).map(
+      (m) => m.localId!,
+    ),
+  );
 
   const direto = new Map<number, { pessoas: number; ativos: number; todos: number }>();
   for (const l of todos) direto.set(l.id, { pessoas: 0, ativos: 0, todos: 0 });
@@ -216,7 +222,7 @@ export async function contagensDosLocais(db: Banco): Promise<Map<number, Contage
     resultado.set(l.id, {
       pessoas: ids.reduce((s, id) => s + direto.get(id)!.pessoas, 0),
       itensSemUsuario: ids.reduce((s, id) => s + direto.get(id)!.ativos, 0),
-      vazio: !temFilho.has(l.id) && d.pessoas === 0 && d.todos === 0,
+      vazio: !temFilho.has(l.id) && d.pessoas === 0 && d.todos === 0 && !comMateriais.has(l.id),
     });
   }
   return resultado;

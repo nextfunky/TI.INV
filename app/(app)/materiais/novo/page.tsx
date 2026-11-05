@@ -1,0 +1,31 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+
+import { CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
+import { FormularioDoMaterial } from "@/components/materiais/formulario";
+import { Trilha } from "@/components/trilha";
+import { exigirSessao } from "@/lib/auth/sessao";
+import { obterBanco } from "@/lib/db";
+import { listarLocais } from "@/lib/locais/servico";
+
+export const metadata: Metadata = { title: "Novo material" };
+
+export default function PaginaNovoMaterial() {
+  return (
+    <>
+      <Trilha partes={[{ rotulo: "Materiais", href: "/materiais" }, { rotulo: "Novo material" }]} />
+      <CabecalhoDaPagina titulo="Novo material" subtitulo="Algo controlado por quantidade, sem código." />
+      <div className="mt-8">
+        <Suspense fallback={<div aria-hidden="true" className="h-[520px] max-w-2xl rounded-xl border border-gray-200 bg-white" />}>
+          <Formulario />
+        </Suspense>
+      </div>
+    </>
+  );
+}
+
+async function Formulario() {
+  await exigirSessao();
+  const locais = await listarLocais(obterBanco());
+  return <FormularioDoMaterial locais={locais.map(({ id, caminho }) => ({ id, caminho }))} />;
+}

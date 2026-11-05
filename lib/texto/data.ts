@@ -86,3 +86,17 @@ export function tempoDesde(momento: Date, agora: Date): string {
   if (dias < 365) return relativo.format(-Math.floor(dias / 30), "month");
   return relativo.format(-Math.floor(dias / 365), "year");
 }
+
+/** "05/11/2026 14:30", no horário de São Paulo. */
+export function formatarDataHora(momento: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .format(momento)
+    .replace(",", "");
+}

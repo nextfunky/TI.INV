@@ -61,6 +61,10 @@ export async function apagarColaborador(id: number): Promise<void> {
     await avisar(`${resultado.nome} ainda tem itens. Passe-os para outra pessoa antes de excluir.`, "erro");
     redirect(`/colaboradores/${id}`);
   }
+  if (!resultado.excluido && resultado.motivo === "tem_materiais") {
+    await avisar(`${resultado.nome} já recebeu materiais. O cadastro fica, para guardar esse histórico.`, "erro");
+    redirect(`/colaboradores/${id}`);
+  }
   atualizarTelas();
   await avisar(resultado.excluido ? `Cadastro de ${resultado.nome} excluído.` : "Esta pessoa não está mais no cadastro.");
   redirect("/colaboradores");

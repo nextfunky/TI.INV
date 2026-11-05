@@ -15,6 +15,8 @@ import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { itensDaPessoa, obterColaborador } from "@/lib/colaboradores/servico";
+import { materiaisDaPessoa } from "@/lib/materiais/servico";
+import { formatarDataHora } from "@/lib/texto/data";
 import { obterBanco } from "@/lib/db";
 import { tituloDoItem } from "@/lib/itens/nomes";
 import { plural } from "@/lib/texto/plural";
@@ -44,7 +46,7 @@ async function Pessoa({ params }: Pick<Props, "params">) {
   const db = obterBanco();
   const pessoa = Number.isInteger(id) && id > 0 ? await obterColaborador(db, id) : null;
   if (!pessoa) notFound();
-  const itens = await itensDaPessoa(db, pessoa.id);
+  const [itens, materiais] = await Promise.all([itensDaPessoa(db, pessoa.id), materiaisDaPessoa(db, pessoa.id)]);
 
   return (
     <>
@@ -76,8 +78,8 @@ async function Pessoa({ params }: Pick<Props, "params">) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* Só quem nunca teve itens (nem descartados) pode ser excluído. */}
-          {pessoa.totalDeItens === 0 ? <ExcluirColaborador id={pessoa.id} nome={pessoa.nome} /> : null}
+          {/* Só quem nunca teve itens (nem descartados) nem recebeu material pode ser excluído. */}
+          {pessoa.totalDeItens === 0 && materiais.length === 0 ? <ExcluirColaborador id={pessoa.id} nome={pessoa.nome} /> : null}
           {pessoa.itensAtivos > 0 ? (
             <Link href={`/inventario?pessoa=${pessoa.id}`} className={classesDoBotao("secundario")}>
               <List aria-hidden="true" />
@@ -125,6 +127,51 @@ async function Pessoa({ params }: Pick<Props, "params">) {
           </div>
         )}
       </div>
+
+      {materiais.length ? (
+        <section aria-labelledby="materiais-entregues" className="mt-10">
+          <h2 id="materiais-entregues" className="px-6 pb-3 text-base font-semibold">
+            Materiais entregues
+          </h2>
+          <div className="relative overflow-x-auto rounded-xl border border-gray-200 bg-white">
+            <table className="w-full min-w-[560px] border-collapse text-left">
+              <thead>
+                <tr className="border-b border-gray-200 text-13 font-medium text-gray-500">
+                  <th scope="col" className="w-40 py-3 pr-4 pl-6 font-medium">
+                    Data
+                  </th>
+                  <th scope="col" className="py-3 pr-4 font-medium">
+                    Material
+                  </th>
+                  <th scope="col" className="w-20 py-3 pr-4 text-right font-medium">
+                    Qtd.
+                  </th>
+                  <th scope="col" className="py-3 pr-6 font-medium">
+                    Observação
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {materiais.map((m) => (
+                  <tr key={m.id} className="border-b border-gray-100 last:border-b-0">
+                    <td className="py-3 pr-4 pl-6 align-top text-13 whitespace-nowrap text-gray-500 tabular-nums">
+                      {formatarDataHora(m.criadoEm)}
+                    </td>
+                    <td className="py-3 pr-4 align-top">
+                      <Link href={`/materiais/${m.material.id}`} className="font-medium text-gray-900 hover:text-accent">
+                        {m.material.nome}
+                      </Link>
+                      {m.material.marcaModelo ? <p className="text-13 text-gray-500">{m.material.marcaModelo}</p> : null}
+                    </td>
+                    <td className="py-3 pr-4 text-right align-top font-mono text-13 tabular-nums">{m.quantidade.toLocaleString("pt-BR")}</td>
+                    <td className="py-3 pr-6 align-top text-gray-600">{m.observacao ?? <span className="text-gray-400">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

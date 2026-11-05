@@ -13,7 +13,7 @@ export type TipoNaLista = { id: number; nome: string; categoria: Categoria };
 const PILULA =
   "h-8 cursor-pointer appearance-none rounded-full border bg-white pr-8 pl-3 text-13 transition-colors duration-150 focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/12";
 
-function Selecao({
+export function Selecao({
   id,
   rotulo,
   ativa,

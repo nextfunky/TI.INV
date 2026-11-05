@@ -11,6 +11,7 @@ import { cx } from "@/lib/classes";
  */
 const TELAS = [
   { href: "/colaboradores", rotulo: "Colaboradores" },
+  { href: "/materiais", rotulo: "Materiais" },
   { href: "/locais", rotulo: "Locais" },
 ];
 

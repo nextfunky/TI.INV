@@ -25,6 +25,8 @@ import {
   trazerPessoas,
 } from "@/lib/locais/servico";
 
+import { criarMaterial } from "@/lib/materiais/servico";
+
 import { criarBancoDeTeste } from "./banco-de-teste";
 
 let db: Banco;
@@ -41,7 +43,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await db.execute(sql`truncate table itens, colaboradores, locais, tipos_de_item restart identity`);
+  await db.execute(sql`truncate table movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`);
   await db.execute(sql.raw(TIPOS_PADRAO));
   tipo = Object.fromEntries((await db.select().from(tiposDeItem)).map((t) => [t.prefixo, t.id]));
 });
@@ -321,5 +323,24 @@ describe("tela e página do local", () => {
     expect(await trazerItens(db, estoque, opcoes.map((i) => i.id))).toBe(1);
     expect((await itensSemUsuarioDoLocal(db, estoque)).map((i) => i.codigo)).toEqual(["MON0001"]);
     expect(await trazerPessoas(db, 999, [ana])).toBeNull();
+  });
+});
+
+describe("local com materiais", () => {
+  it("não fica vazio nem pode ser excluído", async () => {
+    const filial = await local("Filial 04");
+    const estoque = await local("Estoque da TI", filial);
+    const r = await criarMaterial(db, {
+      nome: "Cabo HDMI",
+      marcaModelo: null,
+      grupo: "cabos",
+      localId: estoque,
+      condicao: null,
+      observacoes: null,
+      quantidade: 0,
+    });
+    expect(r.criado).toBe(true);
+    expect((await contagensDosLocais(db)).get(estoque)?.vazio).toBe(false);
+    expect(await excluirLocal(db, estoque)).toMatchObject({ excluido: false, motivo: "nao_vazio" });
   });
 });

@@ -1,6 +1,6 @@
 import { and, asc, count, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
-import { colaboradores, itens, locais } from "@/lib/db/schema";
+import { colaboradores, itens, locais, movimentosDeMaterial } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 import { condicaoDeBusca, ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
 import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/servico";
@@ -73,15 +73,27 @@ export async function editarColaborador(
   return salvo ? { salvo: true } : { salvo: false, naoEncontrado: true };
 }
 
-/** Só exclui quem não tem nenhum item, nem descartado. */
+/** Quantos materiais já saíram para a pessoa (é o histórico dela: impede excluir o cadastro). */
+export async function totalDeMateriaisRecebidos(db: Banco, id: number): Promise<number> {
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(movimentosDeMaterial)
+    .where(eq(movimentosDeMaterial.colaboradorId, id));
+  return total;
+}
+
+/** Só exclui quem não tem nenhum item (nem descartado) e nunca recebeu material. */
 export async function excluirColaborador(
   db: Banco,
   id: number,
-): Promise<{ excluido: true; nome: string } | { excluido: false; motivo: "tem_itens" | "nao_encontrado"; nome?: string }> {
+): Promise<
+  { excluido: true; nome: string } | { excluido: false; motivo: "tem_itens" | "tem_materiais" | "nao_encontrado"; nome?: string }
+> {
   const [pessoa] = await db.select().from(colaboradores).where(eq(colaboradores.id, id));
   if (!pessoa) return { excluido: false, motivo: "nao_encontrado" };
   const [{ total }] = await db.select({ total: count() }).from(itens).where(eq(itens.usuarioId, id));
   if (total > 0) return { excluido: false, motivo: "tem_itens", nome: pessoa.nome };
+  if ((await totalDeMateriaisRecebidos(db, id)) > 0) return { excluido: false, motivo: "tem_materiais", nome: pessoa.nome };
   await db.delete(colaboradores).where(eq(colaboradores.id, id));
   return { excluido: true, nome: pessoa.nome };
 }

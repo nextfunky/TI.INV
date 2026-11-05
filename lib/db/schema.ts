@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { CATEGORIAS, CONDICOES, STATUS } from "@/lib/itens/valores";
+import { GRUPOS, TIPOS_DE_MOVIMENTO } from "@/lib/materiais/valores";
 
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();
 const atualizadoEm = () => timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow();
@@ -162,5 +163,67 @@ export const itens = pgTable(
     index("itens_local_id_idx").on(t.localId),
     index("itens_status_idx").on(t.status),
     index("itens_atualizado_em_idx").on(t.atualizadoEm),
+  ],
+);
+
+export const grupoDoMaterial = pgEnum("grupo_do_material", GRUPOS);
+export const tipoDeMovimento = pgEnum("tipo_de_movimento", TIPOS_DE_MOVIMENTO);
+
+/**
+ * Os materiais: o que é controlado por quantidade, sem código (cabos, toners,
+ * mousepads...). Cada material fica num local só; o mesmo cabo em duas
+ * unidades são dois cadastros. A `quantidade` é o saldo atual e só muda
+ * pelos movimentos.
+ */
+export const materiais = pgTable(
+  "materiais",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    nome: text("nome").notNull(),
+    marcaModelo: text("marca_modelo"),
+    grupo: grupoDoMaterial("grupo").notNull(),
+    localId: integer("local_id").references(() => locais.id, { onDelete: "restrict" }),
+    condicao: condicaoDoItem("condicao"),
+    observacoes: text("observacoes"),
+    quantidade: integer("quantidade").notNull().default(0),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [
+    check("materiais_quantidade_positiva", sql`${t.quantidade} >= 0`),
+    index("materiais_grupo_idx").on(t.grupo),
+    index("materiais_local_id_idx").on(t.localId),
+  ],
+);
+
+/**
+ * O histórico de cada material. Na entrada e na saída, `quantidade` é quanto
+ * entrou ou saiu (sempre positiva); no ajuste, é a diferença da contagem
+ * (+3 ou -2). `saldo` é como ficou depois do movimento.
+ */
+export const movimentosDeMaterial = pgTable(
+  "movimentos_de_material",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    materialId: integer("material_id")
+      .notNull()
+      .references(() => materiais.id, { onDelete: "cascade" }),
+    tipo: tipoDeMovimento("tipo").notNull(),
+    quantidade: integer("quantidade").notNull(),
+    saldo: integer("saldo").notNull(),
+    /** Para quem saiu (só nas saídas, e opcional). Não dá para excluir quem recebeu material. */
+    colaboradorId: integer("colaborador_id").references(() => colaboradores.id, { onDelete: "restrict" }),
+    observacao: text("observacao"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    check(
+      "movimentos_quantidade_valida",
+      sql`(${t.tipo} = 'ajuste' and ${t.quantidade} <> 0) or (${t.tipo} <> 'ajuste' and ${t.quantidade} > 0)`,
+    ),
+    check("movimentos_saldo_positivo", sql`${t.saldo} >= 0`),
+    check("movimentos_pessoa_so_na_saida", sql`${t.colaboradorId} is null or ${t.tipo} = 'saida'`),
+    index("movimentos_material_id_idx").on(t.materialId, t.id),
+    index("movimentos_colaborador_id_idx").on(t.colaboradorId),
   ],
 );
