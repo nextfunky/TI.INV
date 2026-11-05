@@ -112,7 +112,7 @@ async function Painel() {
           href="/inventario"
           rotulo="Total de itens"
           numero={p.total}
-          detalhe={textoPorCategoria(p.porCategoria, " · ") || "nenhum ainda"}
+          detalhe={textoPorCategoria(p.porCategoria, " · ", 3) || "nenhum ainda"}
         />
         <Numero
           href="/inventario?status=em_uso"

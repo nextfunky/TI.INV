@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { itens, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
-import { buscarItens, listarItens, resumoDoInventario, totaisDoInventario } from "@/lib/itens/consultas";
+import { buscarItens, listarItens, resumoDoInventario, textoPorCategoria, totaisDoInventario } from "@/lib/itens/consultas";
 import { painelDoInicio } from "@/lib/itens/inicio";
 import { regrasDoItem, regrasDoPrefixo, type DadosDoItem } from "@/lib/itens/regras";
 import { criarItem, editarItem, excluirItem, montarCodigo, obterItemPorCodigo } from "@/lib/itens/servico";
@@ -269,9 +269,15 @@ describe("Inventário", () => {
     const totais = await totaisDoInventario(db);
     expect(resumoDoInventario(totais, 5, false)).toBe("5 itens · 2 computadores, 2 periféricos, 1 outro");
     expect(resumoDoInventario(totais, 1, true)).toBe("Mostrando 1 de 5 itens");
-    expect(resumoDoInventario({ total: 1, porCategoria: { computador: 1, periferico: 0, outro: 0 } }, 1, false)).toBe(
-      "1 item · 1 computador",
+    const zero = { computador: 0, periferico: 0, movel: 0, impressao: 0, telefonia: 0, rede: 0, seguranca: 0, outro: 0 };
+    expect(resumoDoInventario({ total: 1, porCategoria: { ...zero, computador: 1 } }, 1, false)).toBe("1 item · 1 computador");
+    // As categorias novas: contagem com "de" quando o nome não tem plural.
+    const varias = { ...zero, computador: 18, periferico: 30, movel: 1, impressao: 4, telefonia: 81, rede: 6, seguranca: 7 };
+    expect(textoPorCategoria(varias)).toBe(
+      "18 computadores, 30 periféricos, 1 dispositivo móvel, 4 de impressão, 81 de telefonia, 6 de rede e infraestrutura, 7 de segurança",
     );
+    // No Início, só as 3 maiores e o resto junto.
+    expect(textoPorCategoria(varias, " · ", 3)).toBe("81 de telefonia · 30 periféricos · 18 computadores · mais 4 categorias");
   });
 
   it("pagina de 50 em 50", async () => {
@@ -339,7 +345,7 @@ describe("Início", () => {
     await novo("MOU", { status: "descartado" });
     const p = await painelDoInicio(db, HOJE);
     expect(p).toMatchObject({ total: 4, emUso: 2, emEstoque: 1, emManutencao: 1 });
-    expect(p.porCategoria).toEqual({ computador: 2, periferico: 2, outro: 0 });
+    expect(p.porCategoria).toEqual({ computador: 2, periferico: 2, movel: 0, impressao: 0, telefonia: 0, rede: 0, seguranca: 0, outro: 0 });
     expect(p.itensEmManutencao.map((i) => i.codigo)).toEqual(["NTB0001"]);
   });
 

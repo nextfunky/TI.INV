@@ -140,8 +140,11 @@ test("o Inventário filtra, resume e a linha inteira abre o painel do item", asy
   await expect(page.getByText("3 itens · 2 computadores, 1 periférico")).toBeVisible();
   await expect(page.getByRole("row")).toHaveCount(4); // cabeçalho + 3 (o descartado fica de fora)
 
-  await page.getByRole("navigation", { name: "Categoria" }).getByRole("link", { name: "Periféricos" }).click();
+  await page.getByLabel("Categoria", { exact: true }).selectOption({ label: "Periféricos" });
   await expect(page).toHaveURL(/categoria=periferico/);
+  // A lista de tipos passa a mostrar só os tipos da categoria, em ordem alfabética.
+  const tiposDaLista = page.getByLabel("Tipo", { exact: true }).locator("option");
+  await expect(tiposDaLista).toHaveText(["Todos os tipos", "Dock", "Headset", "Kit teclado e mouse", "Monitor", "Mouse", "Teclado", "Webcam"]);
   await expect(page.getByText("Mostrando 1 de 3 itens")).toBeVisible();
 
   await page.getByRole("navigation", { name: "Status" }).getByRole("link", { name: "Descartado" }).click();

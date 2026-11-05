@@ -1,10 +1,10 @@
-import { asc, count, eq, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 
 import { itens, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 
 import type { DadosDoTipo } from "./regras";
-import type { Categoria } from "./valores";
+import { CATEGORIAS, type Categoria } from "./valores";
 
 export type TipoDeItem = typeof tiposDeItem.$inferSelect;
 
@@ -15,11 +15,16 @@ export type TipoComContagem = TipoDeItem & {
   itensDescartados: number;
 };
 
-const ORDEM_DA_CATEGORIA = sql`case ${tiposDeItem.categoria} when 'computador' then 0 when 'periferico' then 1 else 2 end`;
+/** Categoria na ordem da lista e, dentro dela, o nome em ordem alfabética do português ("Câmera" antes de "Celular"). */
+function emOrdem<T extends { categoria: Categoria; nome: string }>(tipos: T[]): T[] {
+  return tipos.sort(
+    (a, b) => CATEGORIAS.indexOf(a.categoria) - CATEGORIAS.indexOf(b.categoria) || a.nome.localeCompare(b.nome, "pt-BR"),
+  );
+}
 
 /** Todos os tipos, agrupados por categoria e em ordem alfabética. */
 export async function listarTipos(db: Banco): Promise<TipoDeItem[]> {
-  return db.select().from(tiposDeItem).orderBy(ORDEM_DA_CATEGORIA, asc(tiposDeItem.nome));
+  return emOrdem(await db.select().from(tiposDeItem));
 }
 
 /** Os tipos com quantos itens cada um tem. */
@@ -32,9 +37,8 @@ export async function listarTiposComContagem(db: Banco): Promise<TipoComContagem
     })
     .from(tiposDeItem)
     .leftJoin(itens, eq(itens.tipoId, tiposDeItem.id))
-    .groupBy(tiposDeItem.id)
-    .orderBy(ORDEM_DA_CATEGORIA, asc(tiposDeItem.nome));
-  return linhas.map((l) => ({ ...l.tipo, itensAtivos: l.itensAtivos, itensDescartados: l.itensDescartados }));
+    .groupBy(tiposDeItem.id);
+  return emOrdem(linhas.map((l) => ({ ...l.tipo, itensAtivos: l.itensAtivos, itensDescartados: l.itensDescartados })));
 }
 
 export async function obterTipo(db: Banco, id: number): Promise<TipoComContagem | null> {

@@ -55,13 +55,21 @@ export async function totaisDoInventario(db: Banco) {
   return { total, porCategoria };
 }
 
-/** "3 computadores, 5 periféricos" (as categorias com zero ficam de fora). */
-export function textoPorCategoria(porCategoria: Record<Categoria, number>, separador = ", "): string {
-  return CATEGORIAS.filter((c) => porCategoria[c] > 0)
-    .map((c) =>
-      plural(porCategoria[c], NOME_DA_CATEGORIA[c].singular.toLocaleLowerCase("pt-BR"), NOME_DA_CATEGORIA[c].plural),
-    )
-    .join(separador);
+/**
+ * "18 computadores, 30 periféricos, 4 de impressão" (as categorias com zero ficam de fora).
+ * Com `maximo`, mostra só as maiores e junta o resto: "81 de telefonia · 30 periféricos · mais 5 categorias".
+ */
+export function textoPorCategoria(porCategoria: Record<Categoria, number>, separador = ", ", maximo?: number): string {
+  let categorias = CATEGORIAS.filter((c) => porCategoria[c] > 0);
+  let resto = 0;
+  if (maximo && categorias.length > maximo) {
+    categorias = [...categorias].sort((a, b) => porCategoria[b] - porCategoria[a]);
+    resto = categorias.length - maximo;
+    categorias = categorias.slice(0, maximo);
+  }
+  const partes = categorias.map((c) => plural(porCategoria[c], ...NOME_DA_CATEGORIA[c].contagem));
+  if (resto) partes.push(`mais ${plural(resto, "categoria", "categorias")}`);
+  return partes.join(separador);
 }
 
 /** O resumo no topo do Inventário. */

@@ -73,7 +73,6 @@ export function BuscaESelecoes({
   return (
     <form action="/inventario" method="get" onSubmit={aoEnviar} role="search" className="flex flex-wrap items-center gap-2">
       {/* Para funcionar sem JavaScript, os outros filtros vão junto. */}
-      {filtros.categoria ? <input type="hidden" name="categoria" value={filtros.categoria} /> : null}
       {filtros.status ? <input type="hidden" name="status" value={filtros.status} /> : null}
       {filtros.pessoa ? <input type="hidden" name="pessoa" value={filtros.pessoa} /> : null}
 
@@ -110,6 +109,27 @@ export function BuscaESelecoes({
       </div>
 
       <Selecao
+        id="filtro-categoria"
+        name="categoria"
+        rotulo="Categoria"
+        ativa={Boolean(filtros.categoria)}
+        value={filtros.categoria ?? ""}
+        onChange={(e) => {
+          const categoria = (e.target.value || undefined) as Categoria | undefined;
+          // O tipo escolhido sai se não for da categoria nova.
+          const tipoContinua = !categoria || tipos.find((t) => t.id === filtros.tipo)?.categoria === categoria;
+          aplicar({ categoria, tipo: tipoContinua ? filtros.tipo : undefined });
+        }}
+      >
+        <option value="">Todas as categorias</option>
+        {CATEGORIAS.filter((c) => tipos.some((t) => t.categoria === c)).map((c) => (
+          <option key={c} value={c}>
+            {NOME_DA_CATEGORIA[c].filtro}
+          </option>
+        ))}
+      </Selecao>
+
+      <Selecao
         id="filtro-tipo"
         name="tipo"
         rotulo="Tipo"
@@ -118,7 +138,7 @@ export function BuscaESelecoes({
         onChange={(e) => aplicar({ tipo: e.target.value ? Number(e.target.value) : undefined })}
       >
         <option value="">Todos os tipos</option>
-        {CATEGORIAS.map((c) => {
+        {CATEGORIAS.filter((c) => !filtros.categoria || c === filtros.categoria).map((c) => {
           const doGrupo = tipos.filter((t) => t.categoria === c);
           if (!doGrupo.length) return null;
           return (

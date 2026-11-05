@@ -1,12 +1,22 @@
 /** Os valores fixos do inventário e como cada um aparece na tela. */
 
-export const CATEGORIAS = ["computador", "periferico", "outro"] as const;
+/** As categorias dos tipos, na ordem em que aparecem. Só "computador" tem os campos de computador. */
+export const CATEGORIAS = ["computador", "periferico", "movel", "impressao", "telefonia", "rede", "seguranca", "outro"] as const;
 export type Categoria = (typeof CATEGORIAS)[number];
 
-export const NOME_DA_CATEGORIA: Record<Categoria, { singular: string; plural: string; filtro: string }> = {
-  computador: { singular: "Computador", plural: "computadores", filtro: "Computadores" },
-  periferico: { singular: "Periférico", plural: "periféricos", filtro: "Periféricos" },
-  outro: { singular: "Outro", plural: "outros", filtro: "Outros" },
+/**
+ * Como cada categoria aparece: no singular (formulário de tipo), no filtro e
+ * nas contagens ("18 computadores", "4 de impressão").
+ */
+export const NOME_DA_CATEGORIA: Record<Categoria, { singular: string; filtro: string; contagem: [string, string] }> = {
+  computador: { singular: "Computador", filtro: "Computadores", contagem: ["computador", "computadores"] },
+  periferico: { singular: "Periférico", filtro: "Periféricos", contagem: ["periférico", "periféricos"] },
+  movel: { singular: "Dispositivo móvel", filtro: "Dispositivos móveis", contagem: ["dispositivo móvel", "dispositivos móveis"] },
+  impressao: { singular: "Impressão", filtro: "Impressão", contagem: ["de impressão", "de impressão"] },
+  telefonia: { singular: "Telefonia", filtro: "Telefonia", contagem: ["de telefonia", "de telefonia"] },
+  rede: { singular: "Rede e infraestrutura", filtro: "Rede e infraestrutura", contagem: ["de rede e infraestrutura", "de rede e infraestrutura"] },
+  seguranca: { singular: "Segurança", filtro: "Segurança", contagem: ["de segurança", "de segurança"] },
+  outro: { singular: "Outro", filtro: "Outros", contagem: ["outro", "outros"] },
 };
 
 /** Ordem dos status: do mais usado ao menos usado. */

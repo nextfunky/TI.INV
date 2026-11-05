@@ -57,6 +57,13 @@
       "when": 1793901146911,
       "tag": "0007_importacao",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793905100458,
+      "tag": "0008_categorias-novas",
+      "breakpoints": true
     }
   ]
 }
