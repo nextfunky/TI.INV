@@ -6,12 +6,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   chaveDoNome,
   criarColaborador,
+  devolverItem,
   editarColaborador,
   excluirColaborador,
   itensDaPessoa,
+  itensParaVincular,
   listarColaboradores,
   obterColaborador,
   tambemCom,
+  vincularItens,
 } from "@/lib/colaboradores/servico";
 import { tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
@@ -203,5 +206,54 @@ describe("filtros novos do Inventário", () => {
 
   it("o Início conta as pessoas diferentes com itens em uso", async () => {
     expect((await painelDoInicio(db, "2026-11-05")).pessoasComItensEmUso).toBe(2);
+  });
+});
+
+describe("vincular e devolver pela página da pessoa", () => {
+  const id = async (codigo: string) => (await obterItemPorCodigo(db, codigo))!.id;
+  const status = async (codigo: string) => (await obterItemPorCodigo(db, codigo))!.status;
+
+  it("lista os itens que podem ir para a pessoa: sem descartados, sem os dela, livres primeiro", async () => {
+    const pedro = await pessoa("Pedro Martins");
+    const ana = await pessoa("Ana Paula");
+    await novoItem("MON", { usuarioId: ana, status: "em_uso" }); // MON0001, com outra pessoa
+    await novoItem("DSK"); // DSK0001, livre
+    await novoItem("TEC", { usuarioId: pedro, status: "em_uso" }); // já é dele
+    await novoItem("MOU", { status: "descartado" });
+    expect((await itensParaVincular(db, pedro, "")).map((i) => i.codigo)).toEqual(["DSK0001", "MON0001"]);
+    expect((await itensParaVincular(db, pedro, "ana")).map((i) => i.codigo)).toEqual(["MON0001"]);
+  });
+
+  it("vincula vários de uma vez; em estoque vira em uso, manutenção continua", async () => {
+    const pedro = await pessoa("Pedro Martins");
+    const ana = await pessoa("Ana Paula");
+    await novoItem("DSK");
+    await novoItem("MON", { usuarioId: ana, status: "em_uso" });
+    await novoItem("NTB", { status: "em_manutencao" });
+    const r = await vincularItens(db, pedro, [await id("DSK0001"), await id("MON0001"), await id("NTB0001")]);
+    expect(r).toEqual({ ok: true, nome: "Pedro Martins", codigos: ["DSK0001", "MON0001", "NTB0001"] });
+    expect(await status("DSK0001")).toBe("em_uso");
+    expect(await status("NTB0001")).toBe("em_manutencao");
+    expect((await itensDaPessoa(db, pedro)).map((i) => i.codigo)).toEqual(["DSK0001", "MON0001", "NTB0001"]);
+    expect(await itensDaPessoa(db, ana)).toEqual([]);
+  });
+
+  it("não vincula descartados nem para uma pessoa que não existe", async () => {
+    const pedro = await pessoa("Pedro Martins");
+    await novoItem("MOU", { status: "descartado" });
+    expect(await vincularItens(db, pedro, [await id("MOU0001")])).toMatchObject({ ok: true, codigos: [] });
+    expect(await vincularItens(db, 999, [await id("MOU0001")])).toEqual({ ok: false, motivo: "pessoa_nao_encontrada" });
+  });
+
+  it("devolver tira da pessoa e, se estava em uso, volta para o estoque", async () => {
+    const pedro = await pessoa("Pedro Martins");
+    await novoItem("DSK", { usuarioId: pedro, status: "em_uso" });
+    await novoItem("NTB", { usuarioId: pedro, status: "em_manutencao" });
+    expect(await devolverItem(db, pedro, await id("DSK0001"))).toEqual({ codigo: "DSK0001", voltouAoEstoque: true });
+    expect(await devolverItem(db, pedro, await id("NTB0001"))).toEqual({ codigo: "NTB0001", voltouAoEstoque: false });
+    expect(await status("NTB0001")).toBe("em_manutencao");
+    expect(await itensDaPessoa(db, pedro)).toEqual([]);
+    // Um item que não é dela não é devolvido.
+    expect(await devolverItem(db, pedro, await id("DSK0001"))).toBeNull();
   });
 });

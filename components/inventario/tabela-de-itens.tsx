@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { subtituloDoItem, tituloDoItem } from "@/lib/itens/nomes";
 import type { ItemComTipo } from "@/lib/itens/servico";
@@ -9,9 +10,18 @@ import { PontoDeStatus } from "../status";
 /**
  * A tabela de itens. Poucas colunas; o resto fica no detalhe.
  * A linha inteira é clicável e abre o detalhe do item.
- * Na página da pessoa, a coluna Usuário sai (todos são dela).
+ * Na página da pessoa, a coluna Usuário sai (todos são dela) e entra uma ação
+ * por linha ("Devolver").
  */
-export function TabelaDeItens({ itens, mostrarUsuario = true }: { itens: ItemComTipo[]; mostrarUsuario?: boolean }) {
+export function TabelaDeItens({
+  itens,
+  mostrarUsuario = true,
+  acao,
+}: {
+  itens: ItemComTipo[];
+  mostrarUsuario?: boolean;
+  acao?: (item: ItemComTipo) => ReactNode;
+}) {
   return (
     <div className="relative overflow-x-auto rounded-xl border border-gray-200 bg-white">
       <table className="w-full min-w-[760px] border-collapse text-left">
@@ -34,6 +44,11 @@ export function TabelaDeItens({ itens, mostrarUsuario = true }: { itens: ItemCom
             <th scope="col" className="w-40 py-3 pr-4 font-medium">
               Status
             </th>
+            {acao ? (
+              <th scope="col" className="w-28 py-3 pr-2">
+                <span className="sr-only">Ações</span>
+              </th>
+            ) : null}
             <th scope="col" className="w-12 py-3 pr-6">
               <span className="sr-only">Abrir</span>
             </th>
@@ -66,6 +81,7 @@ export function TabelaDeItens({ itens, mostrarUsuario = true }: { itens: ItemCom
                 <td className="py-3 pr-4 align-middle text-gray-700">
                   <PontoDeStatus status={item.status} />
                 </td>
+                {acao ? <td className="py-2 pr-2 text-right align-middle">{acao(item)}</td> : null}
                 <td className="py-3 pr-6 align-middle">
                   <ChevronRight
                     aria-hidden="true"

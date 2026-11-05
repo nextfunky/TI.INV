@@ -7,13 +7,16 @@ import { Suspense } from "react";
 import { Avatar } from "@/components/avatar";
 import { classesDoBotao } from "@/components/botao";
 import { CabecalhoCarregando } from "@/components/cabecalho-da-pagina";
+import { DevolverItem } from "@/components/colaboradores/devolver";
 import { ExcluirColaborador } from "@/components/colaboradores/excluir";
+import { VincularItens } from "@/components/colaboradores/vincular-itens";
 import { EstadoVazio } from "@/components/estado-vazio";
 import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { itensDaPessoa, obterColaborador } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
+import { tituloDoItem } from "@/lib/itens/nomes";
 import { plural } from "@/lib/texto/plural";
 
 export const metadata: Metadata = { title: "Colaborador" };
@@ -68,6 +71,8 @@ async function Pessoa({ params }: Pick<Props, "params">) {
               Ver no inventário
             </Link>
           ) : null}
+          {/* Sem itens, o "Vincular itens" aparece no meio da página. */}
+          {pessoa.itensAtivos > 0 ? <VincularItens pessoaId={pessoa.id} nome={pessoa.nome} /> : null}
           <Link href={`/colaboradores/${pessoa.id}/editar`} className={classesDoBotao("secundario")}>
             <Pencil aria-hidden="true" />
             Editar
@@ -77,18 +82,31 @@ async function Pessoa({ params }: Pick<Props, "params">) {
 
       <div className="mt-8">
         {itens.length ? (
-          <TabelaDeItens itens={itens} mostrarUsuario={false} />
+          <TabelaDeItens
+            itens={itens}
+            mostrarUsuario={false}
+            acao={(item) => (
+              <DevolverItem
+                pessoaId={pessoa.id}
+                pessoa={pessoa.nome}
+                item={{ id: item.id, codigo: item.codigo, titulo: tituloDoItem(item), status: item.status }}
+              />
+            )}
+          />
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white">
             <EstadoVazio
               icone={Package}
               titulo="Nenhum item com esta pessoa"
-              texto="Ao cadastrar ou editar um item, escolha esta pessoa como usuário."
+              texto="Vincule itens que já estão cadastrados, ou cadastre um item novo."
               acao={
-                <Link href="/inventario/novo" className={classesDoBotao("secundario")}>
-                  <Plus aria-hidden="true" />
-                  Novo item
-                </Link>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <VincularItens pessoaId={pessoa.id} nome={pessoa.nome} />
+                  <Link href="/inventario/novo" className={classesDoBotao("secundario")}>
+                    <Plus aria-hidden="true" />
+                    Novo item
+                  </Link>
+                </div>
               }
             />
           </div>

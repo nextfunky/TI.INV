@@ -9,7 +9,7 @@ import { obterBanco } from "@/lib/db";
 import { errosPorCampo, lerFormulario, type EstadoDoFormulario } from "@/lib/formulario";
 import { regrasDoColaborador } from "@/lib/itens/regras";
 
-import { criarColaborador, editarColaborador, excluirColaborador } from "./servico";
+import { criarColaborador, devolverItem, editarColaborador, excluirColaborador, vincularItens } from "./servico";
 
 function atualizarTelas() {
   revalidatePath("/", "layout");
@@ -81,4 +81,45 @@ export async function cadastrarColaboradorRapido(nome: string): Promise<Resultad
 
   revalidatePath("/colaboradores");
   return { ok: true, colaborador: { id: resultado.colaborador.id, nome: resultado.colaborador.nome } };
+}
+
+export type ResultadoDaAcao = { ok: true; mensagem: string } | { ok: false; erro: string };
+
+function idsValidos(ids: unknown): number[] | null {
+  if (!Array.isArray(ids) || ids.length > 200) return null;
+  const numeros = ids.map(Number);
+  return numeros.every((n) => Number.isInteger(n) && n > 0) ? [...new Set(numeros)] : null;
+}
+
+/** "Vincular itens" na página da pessoa: passa vários itens para ela de uma vez. */
+export async function vincularItensAPessoa(pessoaId: number, itemIds: number[]): Promise<ResultadoDaAcao> {
+  await exigirSessao();
+  const ids = idsValidos(itemIds);
+  if (!ids || !Number.isInteger(pessoaId)) return { ok: false, erro: "Escolha os itens da lista." };
+
+  const resultado = await vincularItens(obterBanco(), pessoaId, ids);
+  if (!resultado.ok) return { ok: false, erro: "Esta pessoa não está mais no cadastro." };
+  if (!resultado.codigos.length) return { ok: false, erro: "Nenhum item foi vinculado." };
+
+  atualizarTelas();
+  const { codigos, nome } = resultado;
+  return {
+    ok: true,
+    mensagem: codigos.length === 1 ? `${codigos[0]} agora está com ${nome}.` : `${codigos.length} itens agora estão com ${nome}.`,
+  };
+}
+
+/** "Devolver" na página da pessoa: tira o item dela (e, se estava em uso, volta para o estoque). */
+export async function devolverItemDaPessoa(pessoaId: number, itemId: number, nome: string): Promise<ResultadoDaAcao> {
+  await exigirSessao();
+  const resultado = await devolverItem(obterBanco(), pessoaId, itemId);
+  if (!resultado) return { ok: false, erro: "Este item já não estava com esta pessoa." };
+
+  atualizarTelas();
+  return {
+    ok: true,
+    mensagem: resultado.voltouAoEstoque
+      ? `${resultado.codigo} voltou para o estoque.`
+      : `${resultado.codigo} não está mais com ${nome}.`,
+  };
 }

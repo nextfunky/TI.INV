@@ -164,6 +164,46 @@ test("só exclui quem não tem itens", async ({ page }) => {
   await expect(page.getByRole("link", { name: /João Lima/ })).toContainText("2 itens");
 });
 
+test("na página da pessoa, vincula vários itens de uma vez e devolve", async ({ page }) => {
+  await page.goto("/colaboradores/novo");
+  await page.getByLabel("Nome", { exact: true }).fill("Carla Dias");
+  await salvar(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Carla Dias");
+
+  await expect(page.getByRole("button", { name: "Vincular itens" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Vincular itens" }).click();
+  const janela = page.getByRole("dialog", { name: "Vincular itens a Carla Dias" });
+  await expect(janela.getByRole("listitem").first()).toContainText("DSK0001"); // os livres vêm primeiro
+  await expect(janela.getByText("Com Ana Paula")).toBeVisible();
+
+  await janela.getByRole("checkbox", { name: /DSK0001/ }).check();
+  await janela.getByRole("checkbox", { name: /NTB0001/ }).check();
+  await janela.getByRole("checkbox", { name: /MON0001/ }).check();
+  await expect(janela.getByText("3 itens escolhidos · 1 sai de outra pessoa")).toBeVisible();
+
+  // A busca muda a lista, mas os escolhidos continuam escolhidos.
+  await janela.getByRole("searchbox", { name: "Buscar item" }).fill("mou");
+  await expect(janela.getByRole("checkbox")).toHaveCount(1);
+  await expect(janela.getByText("3 itens escolhidos")).toBeVisible();
+
+  await janela.getByRole("button", { name: "Vincular 3 itens" }).click();
+  await expect(janela).toBeHidden();
+  await expect(aviso(page)).toHaveText("3 itens agora estão com Carla Dias.");
+  await expect(page.getByText("3 itens com esta pessoa")).toBeVisible();
+  await expect(page.getByRole("row", { name: /NTB0001/ })).toContainText("Em manutenção"); // manutenção continua
+
+  await page.getByRole("row", { name: /DSK0001/ }).hover();
+  await page.getByRole("row", { name: /DSK0001/ }).getByRole("button", { name: "Devolver" }).click();
+  const confirmacao = page.getByRole("dialog", { name: "Devolver DSK0001" });
+  await expect(confirmacao).toContainText("volta para o estoque");
+  await confirmacao.getByRole("button", { name: "Devolver" }).click();
+  await expect(aviso(page)).toHaveText("DSK0001 voltou para o estoque.");
+  await expect(page.getByText("2 itens com esta pessoa")).toBeVisible();
+
+  await page.goto("/colaboradores");
+  await expect(page.getByRole("link", { name: /Ana Paula/ })).toContainText("Nenhum item");
+});
+
 test("no celular (390px), as telas novas não rolam para o lado", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/colaboradores");

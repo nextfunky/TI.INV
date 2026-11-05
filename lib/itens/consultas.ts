@@ -24,7 +24,7 @@ function escaparBusca(termo: string): string {
  * Procura o texto no código, hostname, nº de série, marca, modelo, tipo e
  * no nome de quem usa. Sem diferença de maiúsculas, por parte do texto.
  */
-function condicaoDeBusca(termo: string): SQL | undefined {
+export function condicaoDeBusca(termo: string): SQL | undefined {
   const padrao = `%${escaparBusca(termo.trim())}%`;
   return or(
     ilike(itens.codigo, padrao),

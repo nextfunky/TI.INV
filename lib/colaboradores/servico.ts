@@ -1,8 +1,8 @@
-import { and, asc, count, eq, ilike, ne, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { colaboradores, itens } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
-import { ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
+import { condicaoDeBusca, ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
 import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/servico";
 import { ITENS_POR_PAGINA } from "@/lib/itens/valores";
 
@@ -136,4 +136,62 @@ export async function tambemCom(db: Banco, usuarioId: number, exceto: number) {
   const [{ total }] = await db.select({ total: count() }).from(itens).where(onde);
   const linhas = await consultaDeItens(db).where(onde).orderBy(...ORDEM_DO_CODIGO).limit(5);
   return { itens: linhas.map(juntarItemETipo), total };
+}
+
+// ─── Vincular e devolver (pela página da pessoa) ───────────────────────────
+
+/** Ao receber uma pessoa, um item em estoque passa para "Em uso" (como no formulário). */
+const STATUS_AO_VINCULAR = sql`case when ${itens.status} = 'em_estoque' then 'em_uso'::status_do_item else ${itens.status} end`;
+/** Ao sair da pessoa, um item em uso volta para "Em estoque". */
+const STATUS_AO_DEVOLVER = sql`case when ${itens.status} = 'em_uso' then 'em_estoque'::status_do_item else ${itens.status} end`;
+
+/**
+ * Os itens que podem ir para a pessoa: todos menos os descartados e os que
+ * já estão com ela. Os sem usuário vêm primeiro. No máximo 50 por vez.
+ */
+export async function itensParaVincular(db: Banco, pessoaId: number, termo: string): Promise<ItemComTipo[]> {
+  const condicoes = [
+    ne(itens.status, "descartado"),
+    or(isNull(itens.usuarioId), ne(itens.usuarioId, pessoaId)),
+    termo.trim() ? condicaoDeBusca(termo) : undefined,
+  ];
+  const linhas = await consultaDeItens(db)
+    .where(and(...condicoes))
+    .orderBy(sql`${itens.usuarioId} is not null`, ...ORDEM_DO_CODIGO)
+    .limit(50);
+  return linhas.map(juntarItemETipo);
+}
+
+/** Passa os itens escolhidos para a pessoa (inclusive os que estavam com outra). */
+export async function vincularItens(
+  db: Banco,
+  pessoaId: number,
+  ids: number[],
+): Promise<{ ok: true; nome: string; codigos: string[] } | { ok: false; motivo: "pessoa_nao_encontrada" }> {
+  return db.transaction(async (tx) => {
+    const [pessoa] = await tx.select({ nome: colaboradores.nome }).from(colaboradores).where(eq(colaboradores.id, pessoaId));
+    if (!pessoa) return { ok: false as const, motivo: "pessoa_nao_encontrada" as const };
+    if (!ids.length) return { ok: true as const, nome: pessoa.nome, codigos: [] };
+
+    const alterados = await tx
+      .update(itens)
+      .set({ usuarioId: pessoaId, status: STATUS_AO_VINCULAR, atualizadoEm: sql`now()` })
+      .where(and(inArray(itens.id, ids), ne(itens.status, "descartado")))
+      .returning({ codigo: itens.codigo });
+    return { ok: true as const, nome: pessoa.nome, codigos: alterados.map((a) => a.codigo).sort() };
+  });
+}
+
+/** Tira o item da pessoa. Se estava em uso, volta para o estoque. */
+export async function devolverItem(
+  db: Banco,
+  pessoaId: number,
+  itemId: number,
+): Promise<{ codigo: string; voltouAoEstoque: boolean } | null> {
+  const [item] = await db
+    .update(itens)
+    .set({ usuarioId: null, status: STATUS_AO_DEVOLVER, atualizadoEm: sql`now()` })
+    .where(and(eq(itens.id, itemId), eq(itens.usuarioId, pessoaId)))
+    .returning({ codigo: itens.codigo, status: itens.status });
+  return item ? { codigo: item.codigo, voltouAoEstoque: item.status === "em_estoque" } : null;
 }
