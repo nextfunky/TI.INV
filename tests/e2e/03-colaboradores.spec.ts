@@ -144,7 +144,7 @@ test("a busca rápida mostra com quem está, e o Início conta as pessoas", asyn
   await expect(page.getByRole("region", { name: "Resumo" }).getByText("com 2 colaboradores")).toBeVisible();
 
   await page.keyboard.press("Control+k");
-  const campo = page.getByRole("combobox", { name: "Buscar item para editar" });
+  const campo = page.getByRole("combobox", { name: "Buscar item" });
   await campo.fill("ana paula");
   await expect(page.getByRole("option")).toHaveCount(1);
   await expect(page.getByRole("option")).toContainText("Ana Paula");

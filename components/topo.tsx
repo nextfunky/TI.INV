@@ -6,7 +6,7 @@ import { exigirSessao } from "@/lib/auth/sessao";
 import { AcoesDoTopo } from "./acoes-do-topo";
 import { Logo } from "./logo";
 import { MenuDaConta } from "./menu-da-conta";
-import { MenuPrincipal } from "./menu-principal";
+import { MenuMovel, MenuPrincipal } from "./menu-principal";
 
 /**
  * O topo de todas as telas (menos o Login).
@@ -15,23 +15,27 @@ import { MenuPrincipal } from "./menu-principal";
  */
 export function Topo() {
   return (
-    <header className="border-b border-gray-200 bg-white">
-      {/* No celular: logo e avatar na primeira linha, os botões embaixo. */}
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-2.5 px-6 py-2.5 lg:group-has-[[data-painel]]/app:max-w-[1600px]">
-        <Link href="/" className="mr-auto flex items-center gap-2 text-sm font-semibold text-gray-900 sm:mr-4">
+    <header className="relative border-b border-gray-200 bg-white">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-6 py-2.5 lg:group-has-[[data-painel]]/app:max-w-[1600px]">
+        <Link href="/" className="mr-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-gray-900 xl:mr-4">
           <Logo />
-          Inventário de TI
+          {/* Entre o celular e telas grandes, o nome sai para caber o menu. */}
+          <span className="lg:max-xl:hidden">Inventário de TI</span>
         </Link>
 
         <Suspense fallback={<MenuPrincipal marcar={false} />}>
           <MenuPrincipal />
         </Suspense>
 
-        <Suspense fallback={<div className="size-8 rounded-full border border-gray-200 bg-gray-100 sm:order-last sm:ml-1" />}>
-          <Conta />
-        </Suspense>
-
-        <AcoesDoTopo />
+        <div className="ml-auto flex items-center gap-2">
+          <AcoesDoTopo />
+          <Suspense fallback={<div className="size-8 rounded-full border border-gray-200 bg-gray-100" />}>
+            <Conta />
+          </Suspense>
+          <Suspense fallback={<div className="size-9 lg:hidden" />}>
+            <MenuMovel />
+          </Suspense>
+        </div>
       </div>
     </header>
   );

@@ -22,12 +22,25 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1b1e" },
+  ],
 };
+
+/**
+ * Aplica o tema escolhido (Claro ou Escuro) antes de a página aparecer, para
+ * não piscar. Sem escolha, vale o do sistema (CSS prefers-color-scheme).
+ */
+const SCRIPT_DO_TEMA = `try{var t=localStorage.getItem("tema");if(t==="claro"||t==="escuro")document.documentElement.dataset.tema=t}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR">
+    // O script muda o data-tema do <html> antes do React: o aviso de diferença é esperado.
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_DO_TEMA }} />
+      </head>
       <body>
         {children}
         <Suspense>

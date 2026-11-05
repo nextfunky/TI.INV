@@ -8,11 +8,11 @@ const BASE =
   "inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm font-medium transition-colors duration-150 [&_svg]:size-4 [&_svg]:shrink-0";
 
 const VARIANTES: Record<VarianteDoBotao, string> = {
-  primario: "bg-accent text-white hover:bg-accent-hover",
+  primario: "bg-botao text-sobre-cor hover:bg-botao-hover",
   secundario: "border border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50",
   fantasma: "text-accent hover:bg-gray-100",
   perigo: "text-descartado hover:bg-red-50",
-  perigoSolido: "bg-descartado text-white hover:bg-red-700",
+  perigoSolido: "bg-descartado text-sobre-cor hover:bg-descartado/90",
 };
 
 /** As classes de um botão, para usar também em links (<Link className={...}>). */

@@ -1,24 +1,18 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { Suspense } from "react";
 
 import { classesDoBotao } from "./botao";
 import { BuscaRapida } from "./busca-rapida";
-import { BotaoVerInventario } from "./botao-ver-inventario";
 
-/** Os três botões do topo: Ver inventário, Editar item e + Novo item (o único azul). */
+/** A busca ("Buscar item…", Ctrl+K) e o + Novo item, o único botão azul. No celular, só os ícones. */
 export function AcoesDoTopo() {
   return (
-    <div className="order-last flex w-full flex-wrap items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
-      {/* O botão sabe em que página está; até saber, aparece sem destaque. */}
-      <Suspense fallback={<BotaoVerInventario marcado={false} />}>
-        <BotaoVerInventario />
-      </Suspense>
+    <>
       <BuscaRapida />
-      <Link href="/inventario/novo" className={classesDoBotao("primario", "gap-1.5")}>
+      <Link href="/inventario/novo" aria-label="Novo item" className={classesDoBotao("primario", "gap-1.5 max-sm:w-9 max-sm:px-0")}>
         <Plus aria-hidden="true" />
-        Novo item
+        <span className="max-sm:hidden">Novo item</span>
       </Link>
-    </div>
+    </>
   );
 }

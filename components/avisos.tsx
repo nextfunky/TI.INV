@@ -79,7 +79,7 @@ export function Avisos() {
       {atual ? (
         <div
           key={atual.chave}
-          className={`flex items-center gap-2.5 rounded-lg bg-gray-900 px-4 py-3 text-sm text-white shadow-aviso ${
+          className={`flex items-center gap-2.5 rounded-lg bg-gray-900 px-4 py-3 text-sm text-white shadow-aviso escuro:border escuro:border-gray-300 escuro:bg-gray-100 escuro:text-gray-900 ${
             atual.saindo ? "animate-aviso-sai" : "animate-aviso-entra"
           }`}
         >

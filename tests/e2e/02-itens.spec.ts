@@ -31,10 +31,11 @@ test("sem itens, o Início está em ordem e o Inventário convida a cadastrar", 
   await expect(page.getByText("Tudo em ordem")).toBeVisible();
   await expect(page.getByText("Nenhum item cadastrado ainda.")).toBeVisible();
 
-  await page.getByRole("link", { name: "Ver inventário" }).click();
+  const menu = page.getByRole("navigation", { name: "Principal" });
+  await menu.getByRole("link", { name: "Inventário" }).click();
   await expect(page).toHaveURL(/\/inventario$/);
   await expect(page.getByRole("heading", { name: "Nenhum item cadastrado" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Ver inventário" })).toHaveAttribute("aria-current", "page");
+  await expect(menu.getByRole("link", { name: "Inventário" })).toHaveAttribute("aria-current", "page");
 });
 
 test("cadastra um desktop, e 'Salvar e cadastrar outro' repete o que é igual", async ({ page }) => {
@@ -107,9 +108,9 @@ test("mudar o tipo dá um código novo", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
 });
 
-test("a busca rápida (Ctrl+K) acha o item e abre a edição", async ({ page }) => {
+test("a busca rápida (Ctrl+K) acha o item e abre o painel dele", async ({ page }) => {
   await page.keyboard.press("Control+k");
-  const busca = page.getByRole("combobox", { name: "Buscar item para editar" });
+  const busca = page.getByRole("combobox", { name: "Buscar item" });
   await expect(busca).toBeFocused();
   await expect(page.getByRole("option")).toHaveCount(3);
 
@@ -120,9 +121,10 @@ test("a busca rápida (Ctrl+K) acha o item e abre a edição", async ({ page }) 
   await expect(page.getByRole("option")).toHaveCount(1);
   await expect(page.getByRole("option")).toContainText("Monitor Dell P2422H");
   await busca.press("Enter");
-  await expect(page).toHaveURL(/\/inventario\/MON0001\/editar$/);
+  await expect(page).toHaveURL(/\/inventario\?item=MON0001$/);
+  await expect(page.getByRole("complementary", { name: "Detalhes de MON0001" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Editar item" }).click();
+  await page.getByRole("button", { name: "Buscar item (Ctrl+K)" }).click();
   await expect(busca).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(busca).toBeHidden();

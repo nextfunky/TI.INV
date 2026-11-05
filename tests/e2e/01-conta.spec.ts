@@ -61,13 +61,15 @@ test("sem login, a página pedida leva à entrada e volta depois", async ({ page
   await expect(page.getByRole("heading", { name: "Alterar senha" })).toBeVisible();
 });
 
-test("o topo mostra os três botões e o menu da conta", async ({ page }) => {
+test("o topo mostra todas as telas, a busca, o + Novo item e o menu da conta", async ({ page }) => {
   await page.goto("/entrar");
   await entrar(page, USUARIO, SENHA);
   await expect(page).toHaveURL(/\/$/);
 
-  await expect(page.getByRole("link", { name: "Ver inventário" })).toHaveAttribute("href", "/inventario");
-  await expect(page.getByRole("button", { name: "Editar item" })).toBeVisible();
+  const menu = page.getByRole("navigation", { name: "Principal" });
+  await expect(menu.getByRole("link")).toHaveText(["Início", "Inventário", "Materiais", "Colaboradores", "Locais"]);
+  await expect(menu.getByRole("link", { name: "Início" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Buscar item (Ctrl+K)" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Novo item" })).toHaveAttribute("href", "/inventario/novo");
 
   await page.getByRole("button", { name: `Conta: ${USUARIO}` }).click();
@@ -75,6 +77,28 @@ test("o topo mostra os três botões e o menu da conta", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Tipos de item" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("link", { name: "Alterar senha" })).toBeHidden();
+});
+
+test("o tema: automático, claro ou escuro, e a escolha fica guardada", async ({ page }) => {
+  await page.goto("/entrar");
+  await entrar(page, USUARIO, SENHA);
+  await expect(page).toHaveURL(/\/$/);
+  const html = page.locator("html");
+  await expect(html).not.toHaveAttribute("data-tema");
+
+  await page.getByRole("button", { name: `Conta: ${USUARIO}` }).click();
+  const tema = page.getByRole("radiogroup", { name: "Tema" });
+  await expect(tema.getByRole("radio", { name: "Automático" })).toHaveAttribute("aria-checked", "true");
+  await tema.getByRole("radio", { name: "Escuro" }).click();
+  await expect(html).toHaveAttribute("data-tema", "escuro");
+  // O fundo da página fica escuro.
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(18, 19, 21)");
+
+  await page.reload();
+  await expect(html).toHaveAttribute("data-tema", "escuro");
+  await page.getByRole("button", { name: `Conta: ${USUARIO}` }).click();
+  await page.getByRole("radiogroup", { name: "Tema" }).getByRole("radio", { name: "Automático" }).click();
+  await expect(html).not.toHaveAttribute("data-tema");
 });
 
 test("alterar senha confere a senha atual e troca a senha", async ({ page }) => {
@@ -131,6 +155,14 @@ test("no celular (390px), nada rola para o lado", async ({ browser }) => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   }
+
+  // No celular, o topo cabe numa linha e as telas ficam no ☰.
+  const topo = await page.getByRole("banner").boundingBox();
+  expect(topo!.height).toBeLessThan(70);
+  await page.getByRole("button", { name: "Abrir o menu" }).click();
+  await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Inventário" }).click();
+  await expect(page).toHaveURL(/\/inventario$/);
+  await expect(page.getByRole("button", { name: "Abrir o menu" })).toHaveAttribute("aria-expanded", "false");
   expect(erros).toEqual([]);
   await contexto.close();
 });

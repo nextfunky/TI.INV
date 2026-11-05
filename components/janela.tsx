@@ -45,7 +45,7 @@ export function Janela({
         if (e.target === e.currentTarget) aoFechar();
       }}
       className={cx(
-        "w-[calc(100%-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white p-0 text-left text-gray-900 shadow-janela backdrop:bg-gray-900/30 open:animate-aparecer",
+        "w-[calc(100%-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white p-0 text-left text-gray-900 shadow-janela backdrop:bg-gray-900/30 escuro:backdrop:bg-black/60 open:animate-aparecer",
         largura,
         noTopo ? "mx-auto mt-24 mb-auto" : "m-auto",
       )}

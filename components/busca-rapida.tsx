@@ -1,18 +1,17 @@
 "use client";
 
-import { Pencil, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { classesDoBotao } from "./botao";
 import { Janela } from "./janela";
 import { Tecla } from "./tecla";
 
 type Resultado = { codigo: string; nome: string; usuario: string | null };
 
 /**
- * "Editar item": abre uma busca rápida (também com Ctrl+K) e leva direto
- * para a edição do item escolhido.
+ * "Buscar item…": abre uma busca rápida (também com Ctrl+K) e leva ao
+ * Inventário com o painel do item escolhido aberto.
  */
 export function BuscaRapida() {
   const [aberta, setAberta] = useState(false);
@@ -31,18 +30,22 @@ export function BuscaRapida() {
 
   return (
     <>
+      {/* No computador parece um campo de busca; no celular, só a lupa. */}
       <button
         type="button"
         onClick={() => setAberta(true)}
         aria-haspopup="dialog"
         aria-keyshortcuts="Control+K"
-        className={classesDoBotao("secundario", "pr-3")}
+        aria-label="Buscar item (Ctrl+K)"
+        className="flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 text-gray-500 transition-colors duration-150 hover:border-gray-300 hover:text-gray-700 lg:w-48 lg:bg-gray-50 xl:w-60"
       >
-        <Pencil aria-hidden="true" />
-        Editar item
-        <Tecla>Ctrl K</Tecla>
+        <Search aria-hidden="true" className="size-4 shrink-0" />
+        <span className="hidden flex-1 text-left text-sm lg:block">Buscar item…</span>
+        <span className="hidden lg:block">
+          <Tecla>Ctrl K</Tecla>
+        </span>
       </button>
-      <Janela aberta={aberta} aoFechar={() => setAberta(false)} rotulo="Editar item" noTopo largura="max-w-xl">
+      <Janela aberta={aberta} aoFechar={() => setAberta(false)} rotulo="Buscar item" noTopo largura="max-w-xl">
         <ConteudoDaBusca aoEscolher={() => setAberta(false)} aoFechar={() => setAberta(false)} />
       </Janela>
     </>
@@ -79,7 +82,7 @@ function ConteudoDaBusca({ aoEscolher, aoFechar }: { aoEscolher: () => void; aoF
 
   function abrir(codigo: string) {
     aoEscolher();
-    router.push(`/inventario/${codigo}/editar`);
+    router.push(`/inventario?item=${codigo}`);
   }
 
   function aoTeclar(e: React.KeyboardEvent) {
@@ -106,7 +109,7 @@ function ConteudoDaBusca({ aoEscolher, aoFechar }: { aoEscolher: () => void; aoF
           autoFocus
           type="text"
           role="combobox"
-          aria-label="Buscar item para editar"
+          aria-label="Buscar item"
           aria-expanded={Boolean(resultados?.length)}
           aria-controls={idDaLista}
           aria-activedescendant={resultados?.length ? idDaOpcao(selecionado) : undefined}

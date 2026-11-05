@@ -7,10 +7,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { sair } from "@/lib/auth/acoes";
 import { iniciais } from "@/lib/texto/iniciais";
 
+import { EscolhaDoTema } from "./escolha-do-tema";
+
 const ITEM =
   "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-900 transition-colors duration-150 hover:bg-gray-50";
 
-/** O avatar no canto do topo e o painel com "Alterar senha" e "Sair". */
+/** O avatar no canto do topo e o painel com Tipos de item, Alterar senha, o tema e Sair. */
 export function MenuDaConta({ usuario }: { usuario: string }) {
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ export function MenuDaConta({ usuario }: { usuario: string }) {
   }, [aberto]);
 
   return (
-    <div ref={caixa} className="relative sm:order-last sm:ml-1">
+    <div ref={caixa} className="relative">
       <button
         ref={botao}
         type="button"
@@ -62,7 +64,7 @@ export function MenuDaConta({ usuario }: { usuario: string }) {
       <div
         id={idDoPainel}
         hidden={!aberto}
-        className="absolute top-full right-0 z-40 mt-2 w-56 animate-aparecer rounded-xl border border-gray-200 bg-white p-1.5 shadow-menu"
+        className="absolute top-full right-0 z-40 mt-2 w-72 animate-aparecer rounded-xl border border-gray-200 bg-white p-1.5 shadow-menu"
       >
         <p className="px-3 pt-1.5 pb-2 text-13 text-gray-500">
           Conectado como <span className="font-medium break-words text-gray-900">{usuario}</span>
@@ -73,6 +75,8 @@ export function MenuDaConta({ usuario }: { usuario: string }) {
         <Link href="/configuracoes/senha" className={ITEM}>
           Alterar senha
         </Link>
+        <div className="my-1.5 border-t border-gray-100" />
+        <EscolhaDoTema />
         <div className="my-1.5 border-t border-gray-100" />
         <form action={sair}>
           <button type="submit" className={ITEM}>
