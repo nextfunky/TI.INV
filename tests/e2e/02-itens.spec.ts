@@ -128,7 +128,7 @@ test("a busca rápida (Ctrl+K) acha o item e abre a edição", async ({ page }) 
   await expect(busca).toBeHidden();
 });
 
-test("o Inventário filtra, resume e a linha inteira abre o item", async ({ page }) => {
+test("o Inventário filtra, resume e a linha inteira abre o painel do item", async ({ page }) => {
   await page.goto("/inventario/novo");
   await page.getByLabel("Tipo").selectOption({ label: "Teclado" });
   await page.getByLabel("Status").selectOption("descartado");
@@ -157,9 +157,53 @@ test("o Inventário filtra, resume e a linha inteira abre o item", async ({ page
   await page.getByRole("link", { name: "Limpar filtros" }).click();
   await expect(page).toHaveURL(/\/inventario$/);
 
-  // Clicar em qualquer ponto da linha (aqui, no meio dela) abre o item certo.
+  // Clicar em qualquer ponto da linha (aqui, no meio dela) abre o painel do item certo, sem sair da lista.
   await page.getByRole("row", { name: /MON0001/ }).click();
-  await expect(page).toHaveURL(/\/inventario\/MON0001$/);
+  await expect(page).toHaveURL(/\/inventario\?item=MON0001$/);
+  await expect(page.getByRole("complementary", { name: "Detalhes de MON0001" })).toBeVisible();
+  await expect(page.getByRole("row", { name: /MON0001/ })).toHaveAttribute("aria-current", "true");
+  await expect(page.getByRole("heading", { name: "Inventário" })).toBeVisible();
+});
+
+test("o painel lateral: setas, Esc, Editar e Excluir", async ({ page }) => {
+  // Um item só para este teste (vai ser excluído pelo painel).
+  await page.goto("/inventario/novo");
+  await page.getByLabel("Tipo").selectOption({ label: "Webcam" });
+  await page.getByLabel("Marca").fill("Logitech");
+  await salvar(page);
+  await expect(page).toHaveURL(/\/inventario\/WEB0001$/);
+
+  await page.goto("/inventario?categoria=periferico");
+  await page.getByRole("link", { name: "Dell P2422H" }).click();
+  const painel = (codigo: string) => page.getByRole("complementary", { name: `Detalhes de ${codigo}` });
+  await expect(painel("MON0001")).toContainText("Dell P2422H");
+  await expect(painel("MON0001")).toContainText("Nº de série");
+  // Os filtros continuam no endereço.
+  await expect(page).toHaveURL(/categoria=periferico&item=MON0001/);
+
+  // ↓ abre o item de baixo; ↑ volta; Esc fecha.
+  await page.keyboard.press("ArrowDown");
+  await expect(painel("WEB0001")).toContainText("Logitech");
+  await page.keyboard.press("ArrowUp");
+  await expect(painel("MON0001")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/inventario\?categoria=periferico$/);
+  await expect(page.getByRole("complementary")).toHaveCount(0);
+
+  // Recarregar a página mantém o painel aberto.
+  await page.goto("/inventario?item=WEB0001");
+  await expect(painel("WEB0001")).toBeVisible();
+
+  // Editar é o único botão que sai da lista.
+  await painel("WEB0001").getByRole("link", { name: "Editar" }).click();
+  await expect(page).toHaveURL(/\/inventario\/WEB0001\/editar$/);
+
+  await page.goto("/inventario?item=WEB0001");
+  await painel("WEB0001").getByRole("button", { name: "Excluir" }).click();
+  await page.getByRole("dialog", { name: "Excluir WEB0001" }).getByRole("button", { name: "Excluir" }).click();
+  await expect(page).toHaveURL(/\/inventario$/);
+  await expect(aviso(page)).toHaveText("WEB0001 excluído.");
+  await expect(page.getByRole("complementary")).toHaveCount(0);
 });
 
 test("excluir pede confirmação, e o código não volta a ser usado", async ({ page }) => {
@@ -224,7 +268,7 @@ test("o Início mostra os totais, a manutenção e as garantias", async ({ page 
 
 test("no celular (390px), nada rola para o lado", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const caminho of ["/", "/inventario", "/inventario/novo", "/inventario/DSK0001", "/inventario/DSK0001/editar", "/configuracoes/tipos"]) {
+  for (const caminho of ["/", "/inventario", "/inventario?item=DSK0001", "/inventario/novo", "/inventario/DSK0001", "/inventario/DSK0001/editar", "/configuracoes/tipos"]) {
     await page.goto(caminho);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth), caminho).toBeLessThanOrEqual(390);

@@ -7,6 +7,7 @@ import { classesDoBotao } from "@/components/botao";
 import { CabecalhoCarregando, CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
 import { EstadoVazio } from "@/components/estado-vazio";
 import { FiltrosDoInventario } from "@/components/inventario/filtros";
+import { ComPainel, PainelCarregando, PainelDoItem } from "@/components/inventario/painel-do-item";
 import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { obterColaborador } from "@/lib/colaboradores/servico";
@@ -19,6 +20,7 @@ import {
   temFiltro,
   totaisDoInventario,
 } from "@/lib/itens/consultas";
+import { comItem, itemDoEndereco } from "@/lib/itens/painel";
 import { listarTipos } from "@/lib/itens/tipos";
 import { listarLocais } from "@/lib/locais/servico";
 
@@ -34,11 +36,13 @@ export default function PaginaInventario({ searchParams }: PageProps<"/inventari
 
 async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "searchParams">) {
   await exigirSessao();
-  const filtros = lerFiltros(await searchParams);
+  const parametros = await searchParams;
+  const filtros = lerFiltros(parametros);
   const filtrado = temFiltro(filtros);
+  const aberto = itemDoEndereco(parametros);
 
   const db = obterBanco();
-  const [totais, lista, tipos, locais, pessoa] = await Promise.all([
+  const [totais, itens, tipos, locais, pessoa] = await Promise.all([
     totaisDoInventario(db),
     listarItens(db, filtros),
     listarTipos(db),
@@ -46,10 +50,17 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
     filtros.pessoa ? obterColaborador(db, filtros.pessoa) : null,
   ]);
 
+  const lista = enderecoDoInventario(filtros);
+  const painel = aberto ? (
+    <Suspense key={aberto} fallback={<PainelCarregando />}>
+      <PainelDoItem codigo={aberto} lista={lista} codigos={itens.itens.map((i) => i.codigo)} />
+    </Suspense>
+  ) : null;
+
   return (
-    <>
+    <ComPainel painel={painel}>
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <CabecalhoDaPagina titulo="Inventário" subtitulo={resumoDoInventario(totais, lista.total, filtrado)} />
+        <CabecalhoDaPagina titulo="Inventário" subtitulo={resumoDoInventario(totais, itens.total, filtrado)} />
         <Link href="/inventario/importar" className={classesDoBotao("secundario")}>
           <Upload aria-hidden="true" />
           Importação
@@ -66,8 +77,12 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
       </div>
 
       <div className="mt-6">
-        {lista.itens.length > 0 ? (
-          <TabelaDeItens itens={lista.itens} />
+        {itens.itens.length > 0 ? (
+          <TabelaDeItens
+            itens={itens.itens}
+            linkDoItem={(item) => comItem(lista, item.codigo)}
+            selecionado={aberto}
+          />
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white">
             {filtrado ? (
@@ -98,24 +113,24 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
         )}
       </div>
 
-      {lista.paginas > 1 ? (
+      {itens.paginas > 1 ? (
         <nav aria-label="Páginas" className="mt-4 flex items-center justify-between gap-4">
           <p className="text-13 text-gray-500">
-            Página {lista.pagina} de {lista.paginas}
+            Página {itens.pagina} de {itens.paginas}
           </p>
           <div className="flex gap-2">
-            {lista.pagina > 1 ? (
+            {itens.pagina > 1 ? (
               <Link
-                href={enderecoDoInventario({ ...filtros, pagina: lista.pagina - 1 })}
+                href={enderecoDoInventario({ ...filtros, pagina: itens.pagina - 1 })}
                 className={classesDoBotao("secundario")}
               >
                 <ChevronLeft aria-hidden="true" />
                 Anterior
               </Link>
             ) : null}
-            {lista.pagina < lista.paginas ? (
+            {itens.pagina < itens.paginas ? (
               <Link
-                href={enderecoDoInventario({ ...filtros, pagina: lista.pagina + 1 })}
+                href={enderecoDoInventario({ ...filtros, pagina: itens.pagina + 1 })}
                 className={classesDoBotao("secundario")}
               >
                 Próxima
@@ -125,7 +140,7 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
           </div>
         </nav>
       ) : null}
-    </>
+    </ComPainel>
   );
 }
 

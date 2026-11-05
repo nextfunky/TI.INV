@@ -319,7 +319,7 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, inic
             botoes={
               <>
                 <Botao onClick={() => setExcluindo(false)}>Cancelar</Botao>
-                <form action={apagarItem.bind(null, item.id)}>
+                <form action={apagarItem.bind(null, item.id, "/inventario")}>
                   <BotaoEnviar variante="perigoSolido" enviando="Excluindo…">
                     Excluir
                   </BotaoEnviar>

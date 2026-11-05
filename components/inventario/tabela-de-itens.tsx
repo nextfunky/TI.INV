@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { cx } from "@/lib/classes";
 import { subtituloDoItem, tituloDoItem } from "@/lib/itens/nomes";
 import type { ItemComTipo } from "@/lib/itens/servico";
 
@@ -17,14 +18,22 @@ export function TabelaDeItens({
   itens,
   mostrarUsuario = true,
   acao,
+  linkDoItem = (item) => `/inventario/${item.codigo}`,
+  selecionado,
 }: {
   itens: ItemComTipo[];
   mostrarUsuario?: boolean;
   acao?: (item: ItemComTipo) => ReactNode;
+  /** Para onde a linha leva. Nas listas com painel lateral, é a própria lista com "?item=". */
+  linkDoItem?: (item: ItemComTipo) => string;
+  /** O código do item aberto no painel: a linha fica marcada. */
+  selecionado?: string | null;
 }) {
+  // Com o painel aberto, a lista fica mais estreita: a coluna Tipo sai em telas médias.
+  const comPainel = selecionado !== undefined && selecionado !== null;
   return (
     <div className="relative overflow-x-auto rounded-xl border border-gray-200 bg-white">
-      <table className="w-full min-w-[760px] border-collapse text-left">
+      <table className={cx("w-full border-collapse text-left", comPainel ? "min-w-[560px]" : "min-w-[760px]")}>
         <thead>
           <tr className="border-b border-gray-200 text-13 font-medium text-gray-500">
             <th scope="col" className="w-28 py-3 pr-4 pl-6 font-medium">
@@ -33,7 +42,7 @@ export function TabelaDeItens({
             <th scope="col" className="py-3 pr-4 font-medium">
               Descrição
             </th>
-            <th scope="col" className="w-36 py-3 pr-4 font-medium">
+            <th scope="col" className={cx("w-36 py-3 pr-4 font-medium", comPainel && "max-xl:hidden")}>
               Tipo
             </th>
             {mostrarUsuario ? (
@@ -60,19 +69,24 @@ export function TabelaDeItens({
             return (
               <tr
                 key={item.id}
-                className="group relative border-b border-gray-100 transition-colors duration-150 last:border-b-0 hover:bg-gray-50"
+                aria-current={item.codigo === selecionado ? "true" : undefined}
+                className={cx(
+                  "group relative border-b border-gray-100 transition-colors duration-150 last:border-b-0 hover:bg-gray-50",
+                  item.codigo === selecionado && "bg-gray-50 shadow-[inset_3px_0_0_var(--color-accent)]",
+                )}
               >
                 <td className="py-3 pr-4 pl-6 align-middle font-mono text-13 text-gray-500">{item.codigo}</td>
                 <td className="min-h-14 py-2.5 pr-4 align-middle">
                   <Link
-                    href={`/inventario/${item.codigo}`}
+                    href={linkDoItem(item)}
+                    scroll={false}
                     className="font-medium text-gray-900 after:absolute after:inset-0 after:content-['']"
                   >
                     {tituloDoItem(item)}
                   </Link>
                   {subtitulo ? <p className="text-13 text-gray-500">{subtitulo}</p> : null}
                 </td>
-                <td className="py-3 pr-4 align-middle text-gray-600">{item.tipo.nome}</td>
+                <td className={cx("py-3 pr-4 align-middle text-gray-600", comPainel && "max-xl:hidden")}>{item.tipo.nome}</td>
                 {mostrarUsuario ? (
                   <td className="max-w-52 py-2.5 pr-4 align-middle">
                     <p className="truncate text-gray-700">

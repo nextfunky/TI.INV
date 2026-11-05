@@ -8,6 +8,7 @@ import { avisar } from "@/lib/aviso";
 import { obterBanco } from "@/lib/db";
 import { errosPorCampo, lerFormulario, type EstadoDoFormulario } from "@/lib/formulario";
 
+import { enderecoInterno } from "./painel";
 import { CAMPOS_DO_ITEM, regrasDoItem, regrasDoPrefixo, regrasDoTipo } from "./regras";
 import { criarItem, editarItem, excluirItem } from "./servico";
 import { criarTipo, editarTipo, excluirTipo } from "./tipos";
@@ -63,12 +64,13 @@ export async function salvarItem(
   redirect(`/inventario/${resultado.codigo}`);
 }
 
-export async function apagarItem(id: number): Promise<void> {
+/** Exclui o item. Do painel lateral, volta para a lista em que ele estava (sem o painel). */
+export async function apagarItem(id: number, voltarPara?: string): Promise<void> {
   await exigirSessao();
   const codigo = await excluirItem(obterBanco(), id);
   atualizarTelas();
   await avisar(codigo ? `${codigo} excluído.` : "Este item não existe mais.", codigo ? "sucesso" : "erro");
-  redirect("/inventario");
+  redirect(enderecoInterno(voltarPara) ?? "/inventario");
 }
 
 // ─── Tipos de item ────────────────────────────────────────────────────────

@@ -7,11 +7,13 @@ import { Suspense, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { classesDoBotao } from "@/components/botao";
 import { CabecalhoCarregando } from "@/components/cabecalho-da-pagina";
+import { ComPainel, PainelCarregando, PainelDoItem } from "@/components/inventario/painel-do-item";
 import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
 import { TrazerItens, TrazerPessoas } from "@/components/locais/trazer";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { obterBanco } from "@/lib/db";
+import { comItem, itemDoEndereco } from "@/lib/itens/painel";
 import { caminhoDeCima } from "@/lib/locais/arvore";
 import { contagensDosLocais, itensSemUsuarioDoLocal, listarLocais, pessoasDoLocal } from "@/lib/locais/servico";
 import { juntar, plural } from "@/lib/texto/plural";
@@ -20,7 +22,7 @@ export const metadata: Metadata = { title: "Local" };
 
 type Props = PageProps<"/locais/[id]">;
 
-export default function PaginaDoLocal({ params }: Props) {
+export default function PaginaDoLocal({ params, searchParams }: Props) {
   return (
     <Suspense
       fallback={
@@ -30,7 +32,7 @@ export default function PaginaDoLocal({ params }: Props) {
         </div>
       }
     >
-      <Local params={params} />
+      <Local params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
@@ -47,7 +49,7 @@ function Bloco({ titulo, acao, children }: { titulo: string; acao?: ReactNode; c
   );
 }
 
-async function Local({ params }: Pick<Props, "params">) {
+async function Local({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
   await exigirSessao();
   const id = Number((await params).id);
   const db = obterBanco();
@@ -57,6 +59,13 @@ async function Local({ params }: Pick<Props, "params">) {
 
   const [pessoas, itens] = await Promise.all([pessoasDoLocal(db, id), itensSemUsuarioDoLocal(db, id)]);
   const filhos = locais.filter((l) => l.paiId === id);
+  const lista = `/locais/${id}`;
+  const aberto = itemDoEndereco(await searchParams);
+  const painel = aberto ? (
+    <Suspense key={aberto} fallback={<PainelCarregando />}>
+      <PainelDoItem codigo={aberto} lista={lista} codigos={itens.map((i) => i.codigo)} />
+    </Suspense>
+  ) : null;
   const deCima = caminhoDeCima(local.caminho);
   // Mostra o caminho só das pessoas que estão num local de dentro.
   const relativo = (caminho: string) => caminho.slice(local.caminho.length + 3);
@@ -64,6 +73,7 @@ async function Local({ params }: Pick<Props, "params">) {
   return (
     <>
       <Trilha partes={[{ rotulo: "Locais", href: "/locais" }, { rotulo: local.nome }]} />
+      <ComPainel painel={painel}>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
@@ -165,7 +175,12 @@ async function Local({ params }: Pick<Props, "params">) {
 
       <Bloco titulo="Itens sem usuário" acao={<TrazerItens localId={id} nome={local.nome} />}>
         {itens.length ? (
-          <TabelaDeItens itens={itens} mostrarUsuario={false} />
+          <TabelaDeItens
+            itens={itens}
+            mostrarUsuario={false}
+            linkDoItem={(item) => comItem(lista, item.codigo)}
+            selecionado={aberto}
+          />
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white">
             <p className="px-6 py-5 text-gray-500">
@@ -174,6 +189,7 @@ async function Local({ params }: Pick<Props, "params">) {
           </div>
         )}
       </Bloco>
+      </ComPainel>
     </>
   );
 }

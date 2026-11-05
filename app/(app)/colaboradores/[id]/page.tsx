@@ -11,6 +11,7 @@ import { DevolverItem } from "@/components/colaboradores/devolver";
 import { ExcluirColaborador } from "@/components/colaboradores/excluir";
 import { VincularItens } from "@/components/colaboradores/vincular-itens";
 import { EstadoVazio } from "@/components/estado-vazio";
+import { ComPainel, PainelCarregando, PainelDoItem } from "@/components/inventario/painel-do-item";
 import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
@@ -19,13 +20,14 @@ import { materiaisDaPessoa } from "@/lib/materiais/servico";
 import { formatarDataHora } from "@/lib/texto/data";
 import { obterBanco } from "@/lib/db";
 import { tituloDoItem } from "@/lib/itens/nomes";
+import { comItem, itemDoEndereco } from "@/lib/itens/painel";
 import { plural } from "@/lib/texto/plural";
 
 export const metadata: Metadata = { title: "Colaborador" };
 
 type Props = PageProps<"/colaboradores/[id]">;
 
-export default function PaginaDaPessoa({ params }: Props) {
+export default function PaginaDaPessoa({ params, searchParams }: Props) {
   return (
     <Suspense
       fallback={
@@ -35,22 +37,30 @@ export default function PaginaDaPessoa({ params }: Props) {
         </div>
       }
     >
-      <Pessoa params={params} />
+      <Pessoa params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Pessoa({ params }: Pick<Props, "params">) {
+async function Pessoa({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
   await exigirSessao();
   const id = Number((await params).id);
   const db = obterBanco();
   const pessoa = Number.isInteger(id) && id > 0 ? await obterColaborador(db, id) : null;
   if (!pessoa) notFound();
   const [itens, materiais] = await Promise.all([itensDaPessoa(db, pessoa.id), materiaisDaPessoa(db, pessoa.id)]);
+  const lista = `/colaboradores/${pessoa.id}`;
+  const aberto = itemDoEndereco(await searchParams);
+  const painel = aberto ? (
+    <Suspense key={aberto} fallback={<PainelCarregando />}>
+      <PainelDoItem codigo={aberto} lista={lista} codigos={itens.map((i) => i.codigo)} />
+    </Suspense>
+  ) : null;
 
   return (
     <>
       <Trilha partes={[{ rotulo: "Colaboradores", href: "/colaboradores" }, { rotulo: pessoa.nome }]} />
+      <ComPainel painel={painel}>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
@@ -100,6 +110,8 @@ async function Pessoa({ params }: Pick<Props, "params">) {
           <TabelaDeItens
             itens={itens}
             mostrarUsuario={false}
+            linkDoItem={(item) => comItem(lista, item.codigo)}
+            selecionado={aberto}
             acao={(item) => (
               <DevolverItem
                 pessoaId={pessoa.id}
@@ -172,6 +184,7 @@ async function Pessoa({ params }: Pick<Props, "params">) {
           </div>
         </section>
       ) : null}
+      </ComPainel>
     </>
   );
 }

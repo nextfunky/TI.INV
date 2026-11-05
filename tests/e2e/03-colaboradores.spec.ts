@@ -192,6 +192,13 @@ test("na página da pessoa, vincula vários itens de uma vez e devolve", async (
   await expect(page.getByText("3 itens com esta pessoa")).toBeVisible();
   await expect(page.getByRole("row", { name: /NTB0001/ })).toContainText("Em manutenção"); // manutenção continua
 
+  // Na página da pessoa, clicar na linha também abre o painel, sem sair da página.
+  await page.getByRole("row", { name: /MON0001/ }).click();
+  await expect(page).toHaveURL(/\/colaboradores\/\d+\?item=MON0001$/);
+  await expect(page.getByRole("complementary", { name: "Detalhes de MON0001" })).toContainText("Carla Dias");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("complementary")).toHaveCount(0);
+
   await page.getByRole("row", { name: /DSK0001/ }).hover();
   await page.getByRole("row", { name: /DSK0001/ }).getByRole("button", { name: "Devolver" }).click();
   const confirmacao = page.getByRole("dialog", { name: "Devolver DSK0001" });

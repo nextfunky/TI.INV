@@ -17,7 +17,7 @@ export function Topo() {
   return (
     <header className="border-b border-gray-200 bg-white">
       {/* No celular: logo e avatar na primeira linha, os botões embaixo. */}
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-2.5 px-6 py-2.5">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-2.5 px-6 py-2.5 lg:group-has-[[data-painel]]/app:max-w-[1600px]">
         <Link href="/" className="mr-auto flex items-center gap-2 text-sm font-semibold text-gray-900 sm:mr-4">
           <Logo />
           Inventário de TI
