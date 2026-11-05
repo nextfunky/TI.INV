@@ -1,0 +1,5 @@
+# Guarda todos os textos com quebra de linha no padrão LF, também no Windows.
+* text=auto eol=lf
+*.woff2 binary
+*.png binary
+*.ico binary
