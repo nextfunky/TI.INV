@@ -21,31 +21,32 @@ describe("nome do item nas telas", () => {
   const tela = item({ tipo: monitor, marca: "Dell", modelo: "P2422H", numeroSerie: "CN0ABC123" });
   const semNada = item({ tipo: monitor });
 
-  it("título: hostname, senão marca e modelo, senão o tipo", () => {
-    expect(tituloDoItem(pc)).toBe("FIN-PC-03");
+  it("título: sempre marca e modelo, senão o tipo (o hostname não vira título)", () => {
+    expect(tituloDoItem(pc)).toBe("Dell OptiPlex 7090");
     expect(tituloDoItem(tela)).toBe("Dell P2422H");
     expect(tituloDoItem(semNada)).toBe("Monitor");
     expect(tituloDoItem(item({ marca: "Dell" }))).toBe("Dell");
+    expect(tituloDoItem(item({ hostname: "SO-HOST" }))).toBe("Desktop");
   });
 
-  it("um hostname guardado num monitor não vira título", () => {
-    expect(tituloDoItem(item({ tipo: monitor, hostname: "X", marca: "LG" }))).toBe("LG");
-  });
-
-  it("subtítulo: marca e modelo do computador, senão a série", () => {
-    expect(subtituloDoItem(pc)).toBe("Dell OptiPlex 7090");
+  it("subtítulo: hostname (só de computador) e série, quando existirem", () => {
+    expect(subtituloDoItem(pc)).toBe("FIN-PC-03");
     expect(subtituloDoItem(tela)).toBe("Série CN0ABC123");
+    expect(subtituloDoItem(item({ hostname: "APT-ANA-CAD", modelo: "Inspiron 5490", numeroSerie: "CC7F973" }))).toBe(
+      "APT-ANA-CAD · Série CC7F973",
+    );
+    expect(subtituloDoItem(item({ tipo: monitor, hostname: "X", marca: "LG" }))).toBe("");
     expect(subtituloDoItem(semNada)).toBe("");
   });
 
-  it("nome completo: o tipo vem na frente só dos que não são computador", () => {
-    expect(nomeCompletoDoItem(pc)).toBe("FIN-PC-03");
+  it("nome completo: o tipo na frente, para todos", () => {
+    expect(nomeCompletoDoItem(pc)).toBe("Desktop Dell OptiPlex 7090");
     expect(nomeCompletoDoItem(tela)).toBe("Monitor Dell P2422H");
     expect(nomeCompletoDoItem(semNada)).toBe("Monitor");
   });
 
   it("descrição para textos longos", () => {
-    expect(descricaoDoItem(pc)).toBe("FIN-PC-03 (Dell OptiPlex 7090)");
+    expect(descricaoDoItem(pc)).toBe("Desktop Dell OptiPlex 7090 (FIN-PC-03)");
     expect(descricaoDoItem(tela)).toBe("Monitor Dell P2422H, série CN0ABC123");
   });
 });

@@ -13,35 +13,31 @@ function marcaEModelo(item: ItemParaNome): string {
   return [item.marca, item.modelo].filter(Boolean).join(" ");
 }
 
-function usaHostname(item: ItemParaNome): boolean {
-  return item.tipo.categoria === "computador" && Boolean(item.hostname);
+/** O hostname só vale para computadores (num monitor, ele é ignorado). */
+function hostnameDoItem(item: ItemParaNome): string | null {
+  return item.tipo.categoria === "computador" && item.hostname ? item.hostname : null;
 }
 
-/** Computador com hostname: o hostname. Senão: "marca modelo". Sem os dois: o nome do tipo. */
+/** O nome do item nas listas: sempre "marca modelo"; sem os dois, o nome do tipo. */
 export function tituloDoItem(item: ItemParaNome): string {
-  if (usaHostname(item)) return item.hostname!;
   return marcaEModelo(item) || item.tipo.nome;
 }
 
-/** Computador com hostname e marca/modelo: "marca modelo". Senão, com série: "Série X". Senão: vazio. */
+/** A linha de baixo: o hostname (só computadores) e a série, quando existirem. "APT-ANA-CAD · Série CC7F973". */
 export function subtituloDoItem(item: ItemParaNome): string {
-  const mm = marcaEModelo(item);
-  if (usaHostname(item) && mm) return mm;
-  if (item.numeroSerie) return `Série ${item.numeroSerie}`;
-  return "";
+  return [hostnameDoItem(item), item.numeroSerie ? `Série ${item.numeroSerie}` : null].filter(Boolean).join(" · ");
 }
 
-/** Para computador, ou quando o título já é o nome do tipo: o título. Para os outros: "tipo título". */
+/** Com o tipo na frente: "Notebook Avell Lite New", "Monitor Dell P2422H". Sem marca e modelo: só o tipo. */
 export function nomeCompletoDoItem(item: ItemParaNome): string {
-  const titulo = tituloDoItem(item);
-  if (item.tipo.categoria === "computador" || titulo === item.tipo.nome) return titulo;
-  return `${item.tipo.nome} ${titulo}`;
+  const mm = marcaEModelo(item);
+  return mm ? `${item.tipo.nome} ${mm}` : item.tipo.nome;
 }
 
-/** Textos longos: "FIN-PC-03 (Dell OptiPlex 7090)" ou "Monitor Dell P2422H, série CN0ABC123". */
+/** Textos longos: "Notebook Avell Lite New (APT-ANA-CAD)" ou "Monitor Dell P2422H, série CN0ABC123". */
 export function descricaoDoItem(item: ItemParaNome): string {
-  const mm = marcaEModelo(item);
-  if (usaHostname(item)) return mm ? `${item.hostname} (${mm})` : item.hostname!;
-  const base = [item.tipo.nome, mm].filter(Boolean).join(" ");
-  return item.numeroSerie ? `${base}, série ${item.numeroSerie}` : base;
+  const base = nomeCompletoDoItem(item);
+  const hostname = hostnameDoItem(item);
+  const comHostname = hostname ? `${base} (${hostname})` : base;
+  return item.numeroSerie ? `${comHostname}, série ${item.numeroSerie}` : comHostname;
 }

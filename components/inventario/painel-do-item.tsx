@@ -6,7 +6,7 @@ import { tambemCom } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
 import { cx } from "@/lib/classes";
 import { situacaoDaGarantia } from "@/lib/itens/garantia";
-import { nomeCompletoDoItem, tituloDoItem } from "@/lib/itens/nomes";
+import { nomeCompletoDoItem, subtituloDoItem, tituloDoItem } from "@/lib/itens/nomes";
 import { comItem } from "@/lib/itens/painel";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
 import { NOME_DA_CONDICAO } from "@/lib/itens/valores";
@@ -141,7 +141,7 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
         <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em] break-words">{titulo}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <EtiquetaDeStatus status={item.status} />
-          <span className="text-13 text-gray-500">{juntar(item.tipo.nome, marcaEModelo !== titulo ? marcaEModelo : null)}</span>
+          <span className="text-13 text-gray-500">{juntar(item.tipo.nome, subtituloDoItem(item))}</span>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link href={`/inventario/${item.codigo}/editar`} className={classesDoBotao("secundario")}>

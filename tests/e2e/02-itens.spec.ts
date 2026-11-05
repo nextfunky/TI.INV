@@ -71,7 +71,10 @@ test("cadastra um desktop, e 'Salvar e cadastrar outro' repete o que é igual", 
   await expect(page).toHaveURL(/\/inventario\?item=DSK0002$/);
   await expect(aviso(page)).toHaveText("DSK0002 cadastrado.");
   // Salvar volta para a lista, com o painel do item aberto.
-  await expect(page.getByRole("complementary", { name: "Detalhes de DSK0002" }).getByRole("heading", { level: 2 })).toHaveText("FIN-PC-04");
+  // O nome é sempre marca e modelo; o hostname fica logo abaixo.
+  const detalhes = page.getByRole("complementary", { name: "Detalhes de DSK0002" });
+  await expect(detalhes.getByRole("heading", { level: 2 })).toHaveText("Dell OptiPlex 7090");
+  await expect(detalhes).toContainText("Desktop · FIN-PC-04");
 });
 
 test("um monitor não tem a seção Computador, e o formulário avisa o que falta", async ({ page }) => {
