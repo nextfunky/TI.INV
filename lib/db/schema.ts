@@ -11,7 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { CATEGORIAS, STATUS } from "@/lib/itens/valores";
+import { CATEGORIAS, CONDICOES, STATUS } from "@/lib/itens/valores";
 
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();
 const atualizadoEm = () => timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow();
@@ -78,6 +78,25 @@ export const tiposDeItem = pgTable(
   ],
 );
 
+/**
+ * As pessoas que usam os equipamentos. Não acessam o sistema: são só um cadastro.
+ * A `chave` é o nome normalizado (espaços colapsados, minúsculas), para que
+ * "JOÃO LIMA" e "João Lima" sejam a mesma pessoa.
+ */
+export const colaboradores = pgTable(
+  "colaboradores",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    nome: text("nome").notNull(),
+    chave: text("chave").notNull(),
+    criadoEm: criadoEm(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("colaboradores_chave_unica").on(t.chave)],
+);
+
+export const condicaoDoItem = pgEnum("condicao_do_item", CONDICOES);
+
 /** Cada equipamento do inventário. */
 export const itens = pgTable(
   "itens",
@@ -90,7 +109,11 @@ export const itens = pgTable(
     marca: text("marca"),
     modelo: text("modelo"),
     numeroSerie: text("numero_serie"),
+    /** Com quem o item está. Não dá para excluir uma pessoa que tem itens. */
+    usuarioId: integer("usuario_id").references(() => colaboradores.id, { onDelete: "restrict" }),
     status: statusDoItem("status").notNull().default("em_estoque"),
+    /** Estado de conservação: Novo, Bom, Usado, Regular, Defeituoso. */
+    condicao: condicaoDoItem("condicao"),
     // Só para computadores (desktops e notebooks).
     hostname: text("hostname"),
     processador: text("processador"),
@@ -107,6 +130,7 @@ export const itens = pgTable(
   (t) => [
     uniqueIndex("itens_codigo_unico").on(t.codigo),
     index("itens_tipo_id_idx").on(t.tipoId),
+    index("itens_usuario_id_idx").on(t.usuarioId),
     index("itens_status_idx").on(t.status),
     index("itens_atualizado_em_idx").on(t.atualizadoEm),
   ],

@@ -9,6 +9,7 @@ import { exigirSessao } from "@/lib/auth/sessao";
 import { obterBanco } from "@/lib/db";
 import { tituloDoItem } from "@/lib/itens/nomes";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
+import { listarParaEscolha } from "@/lib/colaboradores/servico";
 import { listarTipos } from "@/lib/itens/tipos";
 
 type Props = PageProps<"/inventario/[codigo]/editar">;
@@ -41,14 +42,16 @@ async function Edicao({ params }: Pick<Props, "params">) {
   if (!item) notFound();
   if (item.codigo !== codigo) redirect(`/inventario/${item.codigo}/editar`);
 
-  const tipos = await listarTipos(db);
+  const [tipos, pessoas] = await Promise.all([listarTipos(db), listarParaEscolha(db)]);
   const titulo = tituloDoItem(item);
   const iniciais: Record<string, string> = {
     tipoId: String(item.tipoId),
     marca: item.marca ?? "",
     modelo: item.modelo ?? "",
     numeroSerie: item.numeroSerie ?? "",
+    usuarioId: item.usuarioId ? String(item.usuarioId) : "",
     status: item.status,
+    condicao: item.condicao ?? "",
     hostname: item.hostname ?? "",
     processador: item.processador ?? "",
     memoriaRam: item.memoriaRam ?? "",
@@ -79,6 +82,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
       <div className="mt-8">
         <FormularioDoItem
           tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
+          pessoas={pessoas}
           iniciais={iniciais}
           item={{ id: item.id, codigo: item.codigo, titulo }}
         />

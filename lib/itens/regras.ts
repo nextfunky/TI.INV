@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { dataValida } from "@/lib/texto/data";
 
-import { CATEGORIAS, STATUS } from "./valores";
+import { CATEGORIAS, CONDICOES, STATUS } from "./valores";
 
 /** Os campos dos formulários de item e de tipo, com as mensagens que aparecem na tela. */
 
@@ -24,7 +24,9 @@ export const CAMPOS_DO_ITEM = [
   "marca",
   "modelo",
   "numeroSerie",
+  "usuarioId",
   "status",
+  "condicao",
   "hostname",
   "processador",
   "memoriaRam",
@@ -51,7 +53,14 @@ export const regrasDoItem = z.object({
   marca: textoOpcional(60),
   modelo: textoOpcional(100),
   numeroSerie: textoOpcional(100),
+  usuarioId: z
+    .string()
+    .regex(/^\d*$/, "Escolha uma pessoa da lista.")
+    .transform((v) => (v ? Number(v) : null)),
   status: z.enum(STATUS, { message: "Escolha o status." }),
+  condicao: z
+    .union([z.enum(CONDICOES), z.literal("")], { message: "Escolha a condição." })
+    .transform((v) => v || null),
   hostname: textoOpcional(63),
   processador: textoOpcional(100),
   memoriaRam: textoOpcional(30),
@@ -79,3 +88,11 @@ export const regrasDoPrefixo = z
   .pipe(z.string().regex(/^[A-Z]{2,5}$/, "Use de 2 a 5 letras, sem acento."));
 
 export type DadosDoTipo = z.output<typeof regrasDoTipo>;
+
+/** Nome do colaborador: espaços extras saem ("  maria   souza " → "maria souza"). */
+export const regrasDoColaborador = z.object({
+  nome: z
+    .string()
+    .transform((v) => v.trim().replace(/\s+/g, " "))
+    .pipe(z.string().min(1, "Informe o nome.").max(120, "Use no máximo 120 caracteres.")),
+});

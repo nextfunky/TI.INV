@@ -9,14 +9,17 @@ import { EstadoVazio } from "@/components/estado-vazio";
 import { FiltrosDoInventario } from "@/components/inventario/filtros";
 import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { obterColaborador } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
 import {
   enderecoDoInventario,
   lerFiltros,
   listarItens,
   resumoDoInventario,
+  temFiltro,
   totaisDoInventario,
 } from "@/lib/itens/consultas";
+import { listarTipos } from "@/lib/itens/tipos";
 
 export const metadata: Metadata = { title: "Inventário" };
 
@@ -31,17 +34,26 @@ export default function PaginaInventario({ searchParams }: PageProps<"/inventari
 async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "searchParams">) {
   await exigirSessao();
   const filtros = lerFiltros(await searchParams);
-  const filtrado = Boolean(filtros.categoria || filtros.status);
+  const filtrado = temFiltro(filtros);
 
   const db = obterBanco();
-  const [totais, lista] = await Promise.all([totaisDoInventario(db), listarItens(db, filtros)]);
+  const [totais, lista, tipos, pessoa] = await Promise.all([
+    totaisDoInventario(db),
+    listarItens(db, filtros),
+    listarTipos(db),
+    filtros.pessoa ? obterColaborador(db, filtros.pessoa) : null,
+  ]);
 
   return (
     <>
       <CabecalhoDaPagina titulo="Inventário" subtitulo={resumoDoInventario(totais, lista.total, filtrado)} />
 
       <div className="mt-8">
-        <FiltrosDoInventario filtros={filtros} />
+        <FiltrosDoInventario
+          filtros={filtros}
+          tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
+          pessoa={pessoa?.nome}
+        />
       </div>
 
       <div className="mt-6">
@@ -53,7 +65,7 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
               <EstadoVazio
                 icone={Search}
                 titulo="Nenhum item encontrado"
-                texto="Tente outra categoria ou status."
+                texto="Tente outra busca ou outros filtros."
                 acao={
                   <Link href="/inventario" className={classesDoBotao("secundario")}>
                     Limpar filtros

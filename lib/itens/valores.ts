@@ -20,6 +20,18 @@ export const NOME_DO_STATUS: Record<Status, string> = {
   descartado: "Descartado",
 };
 
+/** Estado de conservação do item (opcional). */
+export const CONDICOES = ["novo", "bom", "usado", "regular", "defeituoso"] as const;
+export type Condicao = (typeof CONDICOES)[number];
+
+export const NOME_DA_CONDICAO: Record<Condicao, string> = {
+  novo: "Novo",
+  bom: "Bom",
+  usado: "Usado",
+  regular: "Regular",
+  defeituoso: "Defeituoso",
+};
+
 /** Classe da cor do ponto de cada status (definida no tema). */
 export const COR_DO_STATUS: Record<Status, string> = {
   em_uso: "bg-uso",

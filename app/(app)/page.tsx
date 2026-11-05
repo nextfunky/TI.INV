@@ -114,8 +114,17 @@ async function Painel() {
           numero={p.total}
           detalhe={textoPorCategoria(p.porCategoria, " · ") || "nenhum ainda"}
         />
-        {/* "com N colaboradores" chega na Etapa 3, junto com os colaboradores. */}
-        <Numero href="/inventario?status=em_uso" rotulo="Em uso" status="em_uso" numero={p.emUso} detalhe="" />
+        <Numero
+          href="/inventario?status=em_uso"
+          rotulo="Em uso"
+          status="em_uso"
+          numero={p.emUso}
+          detalhe={
+            p.pessoasComItensEmUso
+              ? `com ${plural(p.pessoasComItensEmUso, "colaborador", "colaboradores")}`
+              : ""
+          }
+        />
         <Numero
           href="/inventario?status=em_estoque"
           rotulo="Em estoque"

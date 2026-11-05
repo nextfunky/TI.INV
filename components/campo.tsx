@@ -22,6 +22,8 @@ type PropsDaMoldura = {
   erro?: string;
   /** O rótulo fica só para leitores de tela. */
   rotuloEscondido?: boolean;
+  /** Algo à direita do rótulo (ex.: o link "+ Novo colaborador"). */
+  acessorio?: ReactNode;
   className?: string;
 };
 
@@ -35,6 +37,7 @@ function Moldura({
   dica,
   erro,
   rotuloEscondido,
+  acessorio,
   className,
   children,
 }: PropsDaMoldura & { children: (ligacao: Record<string, unknown>) => ReactNode }) {
@@ -48,12 +51,15 @@ function Moldura({
 
   return (
     <div className={className}>
-      <label
-        htmlFor={id}
-        className={rotuloEscondido ? "sr-only" : "mb-1.5 block text-13 font-medium text-gray-700"}
-      >
-        {rotulo}
-      </label>
+      <div className={cx(Boolean(acessorio) && "mb-1.5 flex items-baseline justify-between gap-3")}>
+        <label
+          htmlFor={id}
+          className={rotuloEscondido ? "sr-only" : cx("block text-13 font-medium text-gray-700", !acessorio && "mb-1.5")}
+        >
+          {rotulo}
+        </label>
+        {acessorio}
+      </div>
       {children(ligacao)}
       {erro ? (
         <p id={idDoErro} className="mt-1.5 text-13 text-descartado">
@@ -72,9 +78,9 @@ function Moldura({
 type PropsDoCampo<T extends "input" | "select" | "textarea"> = Omit<ComponentProps<T>, "id"> & PropsDaMoldura;
 
 /** Campo de texto (também para datas e senhas). */
-export function CampoTexto({ id, rotulo, dica, erro, rotuloEscondido, className, ...props }: PropsDoCampo<"input">) {
+export function CampoTexto({ id, rotulo, dica, erro, rotuloEscondido, acessorio, className, ...props }: PropsDoCampo<"input">) {
   return (
-    <Moldura {...{ id, rotulo, dica, erro, rotuloEscondido, className }}>
+    <Moldura {...{ id, rotulo, dica, erro, rotuloEscondido, acessorio, className }}>
       {(ligacao) => <input {...ligacao} className={cx(classesDoCampo(erro), "h-10 px-3")} {...props} />}
     </Moldura>
   );
@@ -87,12 +93,13 @@ export function CampoSelecao({
   dica,
   erro,
   rotuloEscondido,
+  acessorio,
   className,
   children,
   ...props
 }: PropsDoCampo<"select">) {
   return (
-    <Moldura {...{ id, rotulo, dica, erro, rotuloEscondido, className }}>
+    <Moldura {...{ id, rotulo, dica, erro, rotuloEscondido, acessorio, className }}>
       {(ligacao) => (
         <div className="relative">
           <select
@@ -113,9 +120,18 @@ export function CampoSelecao({
 }
 
 /** Área de texto com várias linhas (Observações). */
-export function CampoTextoLongo({ id, rotulo, dica, erro, rotuloEscondido, className, ...props }: PropsDoCampo<"textarea">) {
+export function CampoTextoLongo({
+  id,
+  rotulo,
+  dica,
+  erro,
+  rotuloEscondido,
+  acessorio,
+  className,
+  ...props
+}: PropsDoCampo<"textarea">) {
   return (
-    <Moldura {...{ id, rotulo, dica, erro, rotuloEscondido, className }}>
+    <Moldura {...{ id, rotulo, dica, erro, rotuloEscondido, acessorio, className }}>
       {(ligacao) => (
         <textarea {...ligacao} className={cx(classesDoCampo(erro), "min-h-28 resize-y px-3 py-2.5")} {...props} />
       )}

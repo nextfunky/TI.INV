@@ -1,19 +1,23 @@
-import { Pencil } from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
+import { Avatar } from "@/components/avatar";
 import { classesDoBotao } from "@/components/botao";
 import { CabecalhoCarregando } from "@/components/cabecalho-da-pagina";
+import { IconeDoTipo } from "@/components/icone-do-tipo";
 import { EtiquetaDeStatus, PontoDeStatus } from "@/components/status";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { cx } from "@/lib/classes";
+import { tambemCom } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
 import { situacaoDaGarantia } from "@/lib/itens/garantia";
-import { tituloDoItem } from "@/lib/itens/nomes";
+import { nomeCompletoDoItem, tituloDoItem } from "@/lib/itens/nomes";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
+import { NOME_DA_CONDICAO } from "@/lib/itens/valores";
 import { FUSO, formatarData, hojeEmSaoPaulo, tempoDesde } from "@/lib/texto/data";
 import { juntar } from "@/lib/texto/plural";
 
@@ -66,9 +70,11 @@ const formatoDeData = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, day: "2
 async function Detalhe({ params }: Pick<Props, "params">) {
   await exigirSessao();
   const { codigo } = await params;
-  const item = await obterItemPorCodigo(obterBanco(), decodeURIComponent(codigo));
+  const db = obterBanco();
+  const item = await obterItemPorCodigo(db, decodeURIComponent(codigo));
   if (!item) notFound();
   if (item.codigo !== codigo) redirect(`/inventario/${item.codigo}`);
+  const outros = item.usuario ? await tambemCom(db, item.usuario.id, item.id) : null;
 
   const agora = new Date();
   const titulo = tituloDoItem(item);
@@ -104,6 +110,9 @@ async function Detalhe({ params }: Pick<Props, "params">) {
             </Dado>
             <Dado rotulo="Status">
               <PontoDeStatus status={item.status} />
+            </Dado>
+            <Dado rotulo="Condição" vazio="Não informada">
+              {item.condicao ? NOME_DA_CONDICAO[item.condicao] : null}
             </Dado>
           </Secao>
 
@@ -146,6 +155,63 @@ async function Detalhe({ params }: Pick<Props, "params">) {
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <h2 className="text-13 font-medium text-gray-500">Usuário</h2>
+            {item.usuario ? (
+              <Link
+                href={`/colaboradores/${item.usuario.id}`}
+                className="mt-3 flex items-center gap-3 font-medium transition-colors duration-150 hover:text-accent"
+              >
+                <Avatar nome={item.usuario.nome} tamanho={36} />
+                <span className="min-w-0 break-words">{item.usuario.nome}</span>
+              </Link>
+            ) : (
+              <p className="mt-3 text-gray-500">Sem usuário. Edite o item para entregá-lo a alguém.</p>
+            )}
+          </div>
+
+          {item.usuario && outros ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h2 className="text-13 font-medium text-gray-500">
+                Também com {item.usuario.nome}
+                {outros.total ? ` · ${outros.total}` : ""}
+              </h2>
+              {outros.itens.length ? (
+                <>
+                  <ul className="-mx-2 mt-2">
+                    {outros.itens.map((outro) => (
+                      <li key={outro.id}>
+                        <Link
+                          href={`/inventario/${outro.codigo}`}
+                          className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors duration-150 hover:bg-gray-50"
+                        >
+                          <IconeDoTipo icone={outro.tipo.icone} className="size-[18px] shrink-0 text-gray-500" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate">{nomeCompletoDoItem(outro)}</span>
+                            <span className="block font-mono text-12 text-gray-500">{outro.codigo}</span>
+                          </span>
+                          <ChevronRight
+                            aria-hidden="true"
+                            className="size-4 text-gray-300 transition-colors duration-150 group-hover:text-gray-500"
+                          />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={`/colaboradores/${item.usuario.id}`}
+                    className="mt-2 inline-flex items-center gap-1 text-13 font-medium text-accent transition-colors duration-150 hover:text-accent-forte"
+                  >
+                    Ver tudo com {item.usuario.nome}
+                    <ChevronRight aria-hidden="true" className="size-3.5" />
+                  </Link>
+                </>
+              ) : (
+                <p className="mt-3 text-gray-500">Nenhum outro item com esta pessoa.</p>
+              )}
+            </div>
+          ) : null}
+
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <h2 className="text-13 font-medium text-gray-500">Registro</h2>
             <dl className="mt-3 flex flex-col gap-2">

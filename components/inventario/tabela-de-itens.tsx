@@ -7,10 +7,11 @@ import type { ItemComTipo } from "@/lib/itens/servico";
 import { PontoDeStatus } from "../status";
 
 /**
- * A tabela de itens. Só 5 colunas; o resto fica no detalhe.
+ * A tabela de itens. Poucas colunas; o resto fica no detalhe.
  * A linha inteira é clicável e abre o detalhe do item.
+ * Na página da pessoa, a coluna Usuário sai (todos são dela).
  */
-export function TabelaDeItens({ itens }: { itens: ItemComTipo[] }) {
+export function TabelaDeItens({ itens, mostrarUsuario = true }: { itens: ItemComTipo[]; mostrarUsuario?: boolean }) {
   return (
     <div className="relative overflow-x-auto rounded-xl border border-gray-200 bg-white">
       <table className="w-full min-w-[760px] border-collapse text-left">
@@ -25,6 +26,11 @@ export function TabelaDeItens({ itens }: { itens: ItemComTipo[] }) {
             <th scope="col" className="w-36 py-3 pr-4 font-medium">
               Tipo
             </th>
+            {mostrarUsuario ? (
+              <th scope="col" className="w-48 py-3 pr-4 font-medium">
+                Usuário
+              </th>
+            ) : null}
             <th scope="col" className="w-40 py-3 pr-4 font-medium">
               Status
             </th>
@@ -52,6 +58,11 @@ export function TabelaDeItens({ itens }: { itens: ItemComTipo[] }) {
                   {subtitulo ? <p className="text-13 text-gray-500">{subtitulo}</p> : null}
                 </td>
                 <td className="py-3 pr-4 align-middle text-gray-600">{item.tipo.nome}</td>
+                {mostrarUsuario ? (
+                  <td className="max-w-48 truncate py-3 pr-4 align-middle text-gray-700">
+                    {item.usuario ? item.usuario.nome : <span className="text-gray-500">—</span>}
+                  </td>
+                ) : null}
                 <td className="py-3 pr-4 align-middle text-gray-700">
                   <PontoDeStatus status={item.status} />
                 </td>

@@ -8,7 +8,7 @@ import { classesDoBotao } from "./botao";
 import { Janela } from "./janela";
 import { Tecla } from "./tecla";
 
-type Resultado = { codigo: string; nome: string };
+type Resultado = { codigo: string; nome: string; usuario: string | null };
 
 /**
  * "Editar item": abre uma busca rápida (também com Ctrl+K) e leva direto
@@ -139,7 +139,7 @@ function ConteudoDaBusca({ aoEscolher, aoFechar }: { aoEscolher: () => void; aoF
           >
             <span className="w-16 shrink-0 font-mono text-13 text-gray-500">{r.codigo}</span>
             <span className="min-w-0 flex-1 truncate font-medium">{r.nome}</span>
-            <Pencil aria-hidden="true" className="size-3.5 shrink-0 text-gray-400" />
+            <span className="max-w-[40%] shrink-0 truncate text-13 text-gray-500">{r.usuario ?? "Sem usuário"}</span>
           </li>
         ))}
       </ul>

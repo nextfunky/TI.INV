@@ -15,7 +15,13 @@ export async function GET(request: NextRequest) {
   const itens = await buscarItens(obterBanco(), termo);
 
   return NextResponse.json(
-    { itens: itens.map((i) => ({ codigo: i.codigo, nome: nomeCompletoDoItem(i), status: i.status })) },
+    {
+      itens: itens.map((i) => ({
+        codigo: i.codigo,
+        nome: nomeCompletoDoItem(i),
+        usuario: i.usuario?.nome ?? null,
+      })),
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

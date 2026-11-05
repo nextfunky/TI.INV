@@ -22,6 +22,13 @@
       "when": 1793877432194,
       "tag": "0002_tipos-padrao",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793882560042,
+      "tag": "0003_colaboradores-e-condicao",
+      "breakpoints": true
     }
   ]
 }

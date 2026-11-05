@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
 
 import { apagarItem, cadastrarItem, salvarItem } from "@/lib/itens/acoes";
-import { CATEGORIAS, NOME_DA_CATEGORIA, NOME_DO_STATUS, STATUS, type Categoria } from "@/lib/itens/valores";
+import {
+  CATEGORIAS,
+  CONDICOES,
+  NOME_DA_CATEGORIA,
+  NOME_DA_CONDICAO,
+  NOME_DO_STATUS,
+  STATUS,
+  type Categoria,
+} from "@/lib/itens/valores";
 import { cx } from "@/lib/classes";
 import { ESTADO_INICIAL } from "@/lib/formulario";
 
@@ -14,11 +22,14 @@ import { BotaoEnviar } from "../botao-enviar";
 import { CampoSelecao, CampoTexto, CampoTextoLongo, FaixaDeErro } from "../campo";
 import { Confirmacao, Janela } from "../janela";
 import { useFocarErro } from "../use-focar-erro";
+import { JanelaNovoColaborador } from "./novo-colaborador";
 
 export type TipoNoFormulario = { id: number; nome: string; categoria: Categoria };
 
 type Props = {
   tipos: TipoNoFormulario[];
+  /** As pessoas para a lista "Usuário". */
+  pessoas: Array<{ id: number; nome: string }>;
   /** Valores iniciais dos campos. */
   iniciais: Record<string, string>;
   /** Na edição: o item que está sendo editado. */
@@ -59,7 +70,7 @@ function Secao({
 }
 
 /** O formulário de item: novo e editar. */
-export function FormularioDoItem({ tipos, iniciais, item, focarNaSerie }: Props) {
+export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, iniciais, item, focarNaSerie }: Props) {
   const editando = Boolean(item);
   const acao = item ? salvarItem.bind(null, item.id) : cadastrarItem;
   const [estado, enviar] = useActionState(acao, ESTADO_INICIAL);
@@ -76,6 +87,20 @@ export function FormularioDoItem({ tipos, iniciais, item, focarNaSerie }: Props)
   const [tipoMudou, setTipoMudou] = useState(false);
   const categoria = tipos.find((t) => String(t.id) === tipoId)?.categoria;
   const ehComputador = categoria === "computador";
+
+  // Usuário e status andam juntos: escolher alguém num item em estoque passa
+  // para "Em uso"; tirar a pessoa de um item em uso volta para "Em estoque".
+  // Depois disso, o status ainda pode ser mudado à mão.
+  const [pessoas, setPessoas] = useState(pessoasIniciais);
+  const [usuarioId, setUsuarioId] = useState(iniciais.usuarioId ?? "");
+  const [status, setStatus] = useState(iniciais.status || "em_estoque");
+  const [novaPessoa, setNovaPessoa] = useState(false);
+
+  function escolherPessoa(id: string) {
+    setUsuarioId(id);
+    if (id && status === "em_estoque") setStatus("em_uso");
+    if (!id && status === "em_uso") setStatus("em_estoque");
+  }
 
   return (
     <>
@@ -132,11 +157,44 @@ export function FormularioDoItem({ tipos, iniciais, item, focarNaSerie }: Props)
             />
           </Secao>
 
-          <Secao titulo="Uso" descricao="Em que situação o item está.">
-            <CampoSelecao id="status" name="status" rotulo="Status" defaultValue={valor("status") || "em_estoque"} erro={erros.status}>
+          <Secao titulo="Uso" descricao="Com quem o item está e em que situação.">
+            <CampoSelecao
+              id="usuarioId"
+              name="usuarioId"
+              rotulo="Usuário"
+              className="sm:col-span-2"
+              value={usuarioId}
+              onChange={(e) => escolherPessoa(e.target.value)}
+              erro={erros.usuarioId}
+              acessorio={
+                <button
+                  type="button"
+                  onClick={() => setNovaPessoa(true)}
+                  className="text-13 font-medium text-accent transition-colors duration-150 hover:text-accent-forte"
+                >
+                  + Novo colaborador
+                </button>
+              }
+            >
+              <option value="">Sem usuário</option>
+              {pessoas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </CampoSelecao>
+            <CampoSelecao id="status" name="status" rotulo="Status" value={status} onChange={(e) => setStatus(e.target.value)} erro={erros.status}>
               {STATUS.map((s) => (
                 <option key={s} value={s}>
                   {NOME_DO_STATUS[s]}
+                </option>
+              ))}
+            </CampoSelecao>
+            <CampoSelecao id="condicao" name="condicao" rotulo="Condição" defaultValue={valor("condicao")} erro={erros.condicao}>
+              <option value="">Não informada</option>
+              {CONDICOES.map((c) => (
+                <option key={c} value={c}>
+                  {NOME_DA_CONDICAO[c]}
                 </option>
               ))}
             </CampoSelecao>
@@ -202,6 +260,18 @@ export function FormularioDoItem({ tipos, iniciais, item, focarNaSerie }: Props)
           )}
         </BarraDeAcoes>
       </form>
+
+      <JanelaNovoColaborador
+        aberta={novaPessoa}
+        aoFechar={() => setNovaPessoa(false)}
+        aoCadastrar={(pessoa) => {
+          setPessoas((lista) =>
+            [...lista, pessoa].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" })),
+          );
+          escolherPessoa(String(pessoa.id));
+          setNovaPessoa(false);
+        }}
+      />
 
       {item ? (
         <Janela aberta={excluindo} aoFechar={() => setExcluindo(false)} rotulo={`Excluir ${item.codigo}`}>
