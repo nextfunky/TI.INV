@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Package, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Package, Plus, Search, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -48,7 +48,13 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
 
   return (
     <>
-      <CabecalhoDaPagina titulo="Inventário" subtitulo={resumoDoInventario(totais, lista.total, filtrado)} />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <CabecalhoDaPagina titulo="Inventário" subtitulo={resumoDoInventario(totais, lista.total, filtrado)} />
+        <Link href="/inventario/importar" className={classesDoBotao("secundario")}>
+          <Upload aria-hidden="true" />
+          Importação
+        </Link>
+      </div>
 
       <div className="mt-8">
         <FiltrosDoInventario

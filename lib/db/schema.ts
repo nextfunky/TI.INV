@@ -227,3 +227,20 @@ export const movimentosDeMaterial = pgTable(
     index("movimentos_colaborador_id_idx").on(t.colaboradorId),
   ],
 );
+
+/**
+ * As planilhas já importadas. O `hash` (SHA-256 do arquivo) impede importar
+ * o mesmo arquivo duas vezes.
+ */
+export const importacoes = pgTable(
+  "importacoes",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    hash: text("hash").notNull(),
+    arquivo: text("arquivo").notNull(),
+    itens: integer("itens").notNull(),
+    materiais: integer("materiais").notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex("importacoes_hash_unico").on(t.hash)],
+);

@@ -115,6 +115,7 @@ test("são sempre dois níveis: só unidades aparecem para escolher", async ({ p
 
   await page.goto("/locais");
   await page.getByRole("link", { name: "Filial 04", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Filial 04");
   await page.getByRole("link", { name: "Editar" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Editar unidade");
   await expect(campoUnidade(page)).toHaveValue("Filial 04");

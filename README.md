@@ -11,8 +11,8 @@ Cada equipamento, quem usa e onde está, e os materiais controlados por quantida
 | 3 | Colaboradores e alocação, campo Condição, busca na lista e filtros por tipo e condição | ✅ feita |
 | 4 | Locais: unidades e departamentos, local da pessoa e dos itens, página do local, filtro por local | ✅ feita |
 | 5A | Materiais (por quantidade): cadastro, entrada, saída, ajuste de contagem, histórico e materiais entregues na página da pessoa | ✅ feita |
-| 5B | Importação da planilha | ⬜ próxima |
-| 6 | Movimentações (histórico) | ⬜ |
+| 5B | Importação de planilha (.xlsx) com prévia, modelo para baixar e 12 tipos novos | ✅ feita |
+| 6 | Movimentações (histórico) | ⬜ próxima |
 | 7 | Mapa: desenhar | ⬜ |
 | 8 | Mapa: posicionar e ver | ⬜ |
 | 9 | Relatórios e exportação | ⬜ |

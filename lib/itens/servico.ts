@@ -74,7 +74,7 @@ export function montarCodigo(prefixo: string, numero: number): string {
  * Computador, e o local próprio só vale para itens sem usuário (com usuário,
  * o item fica onde a pessoa está).
  */
-function aplicarCategoria(dados: DadosDoItem, categoria: Categoria) {
+export function aplicarCategoria(dados: DadosDoItem, categoria: Categoria) {
   const limpo = { ...dados };
   if (categoria !== "computador") for (const campo of CAMPOS_DE_COMPUTADOR) limpo[campo] = null;
   if (limpo.usuarioId !== null) limpo.localId = null;

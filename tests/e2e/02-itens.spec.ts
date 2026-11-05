@@ -188,16 +188,16 @@ test("tipos de item: criar, travar a categoria do computador e excluir", async (
   await expect(page.getByRole("link", { name: /Desktop/ })).toBeVisible();
 
   await page.getByRole("link", { name: "Novo tipo" }).click();
-  await page.getByLabel("Nome").fill("Tablet");
+  await page.getByLabel("Nome").fill("Projetor");
   await page.getByLabel("Prefixo do código").fill("mon");
   await salvar(page);
   await expect(page.getByText("Já existe um tipo com este prefixo.")).toBeVisible();
 
-  await page.getByLabel("Prefixo do código").fill("t ab");
+  await page.getByLabel("Prefixo do código").fill("p rj");
   await salvar(page);
   await expect(page).toHaveURL(/\/configuracoes\/tipos$/);
-  await expect(aviso(page)).toHaveText("Tablet cadastrado.");
-  await expect(page.getByRole("link", { name: /Tablet/ })).toContainText("TAB");
+  await expect(aviso(page)).toHaveText("Projetor cadastrado.");
+  await expect(page.getByRole("link", { name: /Projetor/ })).toContainText("PRJ");
 
   // O Notebook tem itens: não deixa de ser Computador.
   await page.getByRole("link", { name: /Notebook/ }).click();
@@ -205,12 +205,12 @@ test("tipos de item: criar, travar a categoria do computador e excluir", async (
   await expect(page.getByRole("button", { name: "Excluir" })).toHaveCount(0);
 
   await page.goto("/configuracoes/tipos");
-  await page.getByRole("link", { name: /Tablet/ }).click();
+  await page.getByRole("link", { name: /Projetor/ }).click();
   await page.getByRole("button", { name: "Excluir" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Excluir" }).click();
   await expect(page).toHaveURL(/\/configuracoes\/tipos$/);
-  await expect(aviso(page)).toHaveText("Tablet excluído.");
-  await expect(page.getByRole("link", { name: /Tablet/ })).toHaveCount(0);
+  await expect(aviso(page)).toHaveText("Projetor excluído.");
+  await expect(page.getByRole("link", { name: /Projetor/ })).toHaveCount(0);
 });
 
 test("o Início mostra os totais, a manutenção e as garantias", async ({ page }) => {
