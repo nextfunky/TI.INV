@@ -1,28 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { entrar, NOVA_SENHA, SENHA, USUARIO, vigiarErros } from "./ajuda";
 
 /**
- * O fluxo da Etapa 1, na ordem em que acontece de verdade:
+ * O fluxo da conta (Etapa 1), na ordem em que acontece de verdade:
  * primeiro acesso → Início → alterar senha → sair → entrar de novo.
  * O banco começa vazio (veja preparar-banco.ts).
  */
 test.describe.configure({ mode: "serial" });
-
-const USUARIO = "pedro.martins";
-const SENHA = "senha-forte-1";
-const NOVA_SENHA = "nova-senha-2";
-
-function vigiarErros(page: Page) {
-  const erros: string[] = [];
-  page.on("pageerror", (e) => erros.push(e.message));
-  page.on("console", (m) => m.type() === "error" && erros.push(m.text()));
-  return erros;
-}
-
-async function entrar(page: Page, usuario: string, senha: string) {
-  await page.getByLabel("Usuário").fill(usuario);
-  await page.getByLabel("Senha").fill(senha);
-  await page.getByRole("button", { name: "Entrar" }).click();
-}
 
 test("sem conta, qualquer página leva ao primeiro acesso", async ({ page }) => {
   await page.goto("/");
@@ -76,21 +61,18 @@ test("sem login, a página pedida leva à entrada e volta depois", async ({ page
   await expect(page.getByRole("heading", { name: "Alterar senha" })).toBeVisible();
 });
 
-test("o topo mostra os três botões, ainda desativados, e o menu da conta", async ({ page }) => {
+test("o topo mostra os três botões e o menu da conta", async ({ page }) => {
   await page.goto("/entrar");
   await entrar(page, USUARIO, SENHA);
   await expect(page).toHaveURL(/\/$/);
 
-  for (const nome of ["Ver inventário", "Editar item", "Novo item"]) {
-    const botao = page.getByRole("button", { name: nome });
-    await expect(botao).toBeVisible();
-    await expect(botao).toHaveAttribute("aria-disabled", "true");
-  }
-  await page.getByRole("button", { name: "Novo item" }).hover();
-  await expect(page.getByRole("tooltip", { name: "Chega na Etapa 2" }).last()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ver inventário" })).toHaveAttribute("href", "/inventario");
+  await expect(page.getByRole("button", { name: "Editar item" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Novo item" })).toHaveAttribute("href", "/inventario/novo");
 
   await page.getByRole("button", { name: `Conta: ${USUARIO}` }).click();
   await expect(page.getByText(`Conectado como ${USUARIO}`)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Tipos de item" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("link", { name: "Alterar senha" })).toBeHidden();
 });

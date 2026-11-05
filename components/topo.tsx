@@ -1,13 +1,11 @@
-import { List, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { exigirSessao } from "@/lib/auth/sessao";
 
-import { BotaoEmBreve } from "./botao-em-breve";
+import { AcoesDoTopo } from "./acoes-do-topo";
 import { Logo } from "./logo";
 import { MenuDaConta } from "./menu-da-conta";
-import { Tecla } from "./tecla";
 
 /**
  * O topo de todas as telas (menos o Login).
@@ -19,10 +17,7 @@ export function Topo() {
     <header className="border-b border-gray-200 bg-white">
       {/* No celular: logo e avatar na primeira linha, os botões embaixo. */}
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-2.5 px-6 py-2.5">
-        <Link
-          href="/"
-          className="mr-auto flex items-center gap-2 text-sm font-semibold text-gray-900 sm:mr-6"
-        >
+        <Link href="/" className="mr-auto flex items-center gap-2 text-sm font-semibold text-gray-900 sm:mr-6">
           <Logo />
           Inventário de TI
         </Link>
@@ -31,21 +26,7 @@ export function Topo() {
           <Conta />
         </Suspense>
 
-        <div className="order-last flex w-full flex-wrap items-center gap-2 sm:order-none sm:ml-auto sm:w-auto">
-          <BotaoEmBreve id="ver-inventario" quando="Chega na Etapa 2">
-            <List aria-hidden="true" />
-            Ver inventário
-          </BotaoEmBreve>
-          <BotaoEmBreve id="editar-item" quando="Chega na Etapa 2">
-            <Pencil aria-hidden="true" />
-            Editar item
-            <Tecla>Ctrl K</Tecla>
-          </BotaoEmBreve>
-          <BotaoEmBreve id="novo-item" quando="Chega na Etapa 2" variante="primario">
-            <Plus aria-hidden="true" />
-            Novo item
-          </BotaoEmBreve>
-        </div>
+        <AcoesDoTopo />
       </div>
     </header>
   );

@@ -16,6 +16,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Pedidos internos das telas (como a busca rápida) recebem "não autorizado".
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ erro: "Entre no sistema para continuar." }, { status: 401 });
+  }
+
   const entrar = new URL("/entrar", request.url);
   if (pathname !== "/") entrar.searchParams.set("para", pathname + search);
   return NextResponse.redirect(entrar);

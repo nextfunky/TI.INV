@@ -67,6 +67,9 @@ export function MenuDaConta({ usuario }: { usuario: string }) {
         <p className="px-3 pt-1.5 pb-2 text-13 text-gray-500">
           Conectado como <span className="font-medium break-words text-gray-900">{usuario}</span>
         </p>
+        <Link href="/configuracoes/tipos" className={ITEM}>
+          Tipos de item
+        </Link>
         <Link href="/configuracoes/senha" className={ITEM}>
           Alterar senha
         </Link>

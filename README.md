@@ -7,10 +7,10 @@ Cada equipamento, quem usa e onde está. Sistema interno da equipe de TI, usado 
 | Etapa | O que entra | Situação |
 |---|---|---|
 | 1 | Base: primeiro acesso, login, alterar senha, banco, visual e topo | ✅ feita |
-| 2 | Tipos e itens: códigos, formulário, Inventário, detalhe, busca rápida | ⬜ próxima |
-| 3 | Colaboradores e alocação | ⬜ |
+| 2 | Tipos e itens: códigos, formulário, Inventário, detalhe, busca rápida, Início completo e tela de tipos | ✅ feita |
+| 3 | Colaboradores e alocação | ⬜ próxima |
 | 4 | Locais | ⬜ |
-| 5 | Início completo e tipos de item | ⬜ |
+| 5 | Início completo e tipos de item | ✅ feita junto com a Etapa 2 |
 | 6 | Movimentações (histórico) | ⬜ |
 | 7 | Mapa: desenhar | ⬜ |
 | 8 | Mapa: posicionar e ver | ⬜ |
@@ -191,8 +191,9 @@ Next.js 16 e React 19 (TypeScript), Tailwind CSS 4, Postgres no Neon com Drizzle
 
 ```
 app/            As telas (cada pasta é um endereço do sistema)
-components/     Peças da tela: topo, botões, campos, avisos
+components/     Peças da tela: topo, botões, campos, avisos, busca rápida, tabela de itens
 lib/auth/       Conta, login, sessões e senha
+lib/itens/      Itens e tipos: código automático, nomes, garantia, filtros, Início
 lib/db/         Tabelas e conexão com o banco
 drizzle/        Histórico de mudanças do banco (migrations)
 tests/          Testes automáticos (unidade/ e e2e/)

@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
 type Aviso = { texto: string; tipo: "sucesso" | "erro" };
@@ -61,13 +61,14 @@ function retirarAvisoDoServidor(): Aviso | null {
  */
 export function Avisos() {
   const pathname = usePathname();
+  const parametros = useSearchParams().toString();
   const atual = useSyncExternalStore(assinar, () => estado, () => null);
 
-  // A cada troca de página, confere se o servidor deixou um aviso.
+  // A cada troca de endereço (inclusive só do "?..."), confere se o servidor deixou um aviso.
   useEffect(() => {
     const aviso = retirarAvisoDoServidor();
     if (aviso) mostrarAviso(aviso);
-  }, [pathname]);
+  }, [pathname, parametros]);
 
   return (
     <div

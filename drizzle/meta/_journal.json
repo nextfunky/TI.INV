@@ -8,6 +8,20 @@
       "when": 1793839961571,
       "tag": "0000_inicio",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793877431048,
+      "tag": "0001_tipos-e-itens",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793877432194,
+      "tag": "0002_tipos-padrao",
+      "breakpoints": true
     }
   ]
 }
