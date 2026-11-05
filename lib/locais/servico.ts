@@ -8,7 +8,8 @@ import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/
 import { comOsDeDentro, compararCaminhos, montarCaminhos, nivelDoCaminho, podeFicarDentro, SEPARADOR } from "./arvore";
 
 /**
- * As regras dos locais. Recebem o banco como parâmetro, para poderem ser
+ * As regras dos locais. São dois níveis: a unidade (sem pai) e o departamento
+ * (dentro de uma unidade). Recebem o banco como parâmetro, para poderem ser
  * testadas com um banco em memória.
  */
 
@@ -46,7 +47,8 @@ async function recalcularCaminhos(tx: Banco) {
   }
 }
 
-type ErrosDoLocal = Partial<Record<"nome" | "paiId", string>>;
+type ErrosDoLocal = Partial<Record<"nome" | "paiId" | "novaUnidade" | "departamento", string>>;
+const SO_EM_UNIDADE = "Escolha uma unidade.";
 const NOME_REPETIDO = "Já existe um local com este nome aqui.";
 
 async function nomeRepetidoNoPai(tx: Banco, nome: string, paiId: number | null, ignorarId?: number) {
@@ -66,7 +68,8 @@ export async function criarLocal(
     let caminho = dados.nome;
     if (dados.paiId !== null) {
       const pai = await obterLocal(tx, dados.paiId);
-      if (!pai) return { criado: false as const, erros: { paiId: "Escolha um local da lista." } };
+      // Um departamento só fica dentro de uma unidade.
+      if (!pai || pai.paiId !== null) return { criado: false as const, erros: { paiId: SO_EM_UNIDADE } };
       caminho = `${pai.caminho}${SEPARADOR}${dados.nome}`;
     }
     if (await nomeRepetidoNoPai(tx, dados.nome, dados.paiId)) return { criado: false as const, erros: { nome: NOME_REPETIDO } };
@@ -88,9 +91,13 @@ export async function editarLocal(
 
     if (dados.paiId !== null) {
       const todos = await tx.select({ id: locais.id, nome: locais.nome, paiId: locais.paiId }).from(locais);
-      if (!todos.some((l) => l.id === dados.paiId)) return { salvo: false as const, erros: { paiId: "Escolha um local da lista." } };
+      const pai = todos.find((l) => l.id === dados.paiId);
+      if (!pai || pai.paiId !== null) return { salvo: false as const, erros: { paiId: SO_EM_UNIDADE } };
       if (!podeFicarDentro(todos, id, dados.paiId)) {
         return { salvo: false as const, erros: { paiId: "Um local não pode ficar dentro dele mesmo." } };
+      }
+      if (todos.some((l) => l.paiId === id)) {
+        return { salvo: false as const, erros: { paiId: "Uma unidade com departamentos não pode virar departamento." } };
       }
     }
     if (await nomeRepetidoNoPai(tx, dados.nome, dados.paiId, id)) return { salvo: false as const, erros: { nome: NOME_REPETIDO } };
@@ -99,6 +106,51 @@ export async function editarLocal(
     await recalcularCaminhos(tx);
     return { salvo: true as const, local: (await obterLocal(tx, id))! };
   });
+}
+
+/**
+ * O formulário "Novo local": escolhe uma unidade (ou cria uma nova) e, se
+ * quiser, um departamento dentro dela. Tudo numa transação: se o
+ * departamento der erro, a unidade nova também não fica.
+ */
+export async function criarUnidadeEDepartamento(
+  db: Banco,
+  dados: { unidadeId: number | "nova"; novaUnidade: string; departamento: string },
+): Promise<{ criado: true; local: Local } | { criado: false; erros: ErrosDoLocal }> {
+  try {
+    return await db.transaction(async (tx) => {
+      let unidade: Local | null;
+      if (dados.unidadeId === "nova") {
+        if (!dados.novaUnidade) return { criado: false as const, erros: { novaUnidade: "Informe o nome da unidade." } };
+        const r = await criarLocal(tx, { nome: dados.novaUnidade, paiId: null });
+        if (!r.criado) return { criado: false as const, erros: { novaUnidade: "Já existe uma unidade com este nome." } };
+        unidade = r.local;
+      } else {
+        unidade = await obterLocal(tx, dados.unidadeId);
+        if (!unidade || unidade.paiId !== null) return { criado: false as const, erros: { paiId: SO_EM_UNIDADE } };
+      }
+
+      if (!dados.departamento) {
+        if (dados.unidadeId === "nova") return { criado: true as const, local: unidade };
+        return { criado: false as const, erros: { departamento: "Informe o departamento." } };
+      }
+      const r = await criarLocal(tx, { nome: dados.departamento, paiId: unidade.id });
+      if (!r.criado) {
+        // Desfaz a unidade nova, se houver.
+        throw new ErroDoFormulario({ departamento: "Já existe um departamento com este nome nesta unidade." });
+      }
+      return { criado: true as const, local: r.local };
+    });
+  } catch (e) {
+    if (e instanceof ErroDoFormulario) return { criado: false, erros: e.erros };
+    throw e;
+  }
+}
+
+class ErroDoFormulario extends Error {
+  constructor(public erros: ErrosDoLocal) {
+    super("erro do formulário");
+  }
 }
 
 /** O que há diretamente no local (para saber se ele pode ser excluído). */

@@ -74,7 +74,7 @@ async function Local({ params }: Pick<Props, "params">) {
             <h1 className="text-2xl font-semibold tracking-[-0.01em] break-words">{local.nome}</h1>
             <p className="mt-1 text-gray-500">
               {juntar(
-                deCima || "Local principal",
+                deCima ? `Departamento de ${deCima}` : "Unidade",
                 plural(pessoas.length, "pessoa", "pessoas"),
                 plural(itens.length, "item sem usuário", "itens sem usuário"),
               )}
@@ -93,15 +93,16 @@ async function Local({ params }: Pick<Props, "params">) {
         </div>
       </div>
 
-      {filhos.length ? (
+      {local.paiId === null ? (
         <Bloco
-          titulo="Locais dentro"
+          titulo="Departamentos"
           acao={
             <Link href={`/locais/novo?pai=${id}`} className={classesDoBotao("secundario")}>
-              + Novo local dentro
+              + Novo departamento
             </Link>
           }
         >
+          {filhos.length ? (
           <ul className="rounded-xl border border-gray-200 bg-white">
             {filhos.map((f) => {
               const c = contagens.get(f.id);
@@ -127,6 +128,11 @@ async function Local({ params }: Pick<Props, "params">) {
               );
             })}
           </ul>
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-white">
+              <p className="px-6 py-5 text-gray-500">Nenhum departamento nesta unidade ainda.</p>
+            </div>
+          )}
         </Bloco>
       ) : null}
 

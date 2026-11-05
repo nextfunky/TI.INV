@@ -7,22 +7,27 @@ import { exigirSessao } from "@/lib/auth/sessao";
 import { avisar } from "@/lib/aviso";
 import { obterBanco } from "@/lib/db";
 import { errosPorCampo, lerFormulario, type EstadoDoFormulario } from "@/lib/formulario";
-import { regrasDoLocal } from "@/lib/itens/regras";
+import { regrasDoLocal, regrasDoNovoLocal } from "@/lib/itens/regras";
 import { plural } from "@/lib/texto/plural";
 
-import { criarLocal, editarLocal, excluirLocal, obterLocal, trazerItens, trazerPessoas } from "./servico";
+import { criarUnidadeEDepartamento, editarLocal, excluirLocal, obterLocal, trazerItens, trazerPessoas } from "./servico";
 
 function atualizarTelas() {
   revalidatePath("/", "layout");
 }
 
+/** "Novo local": uma unidade nova e/ou um departamento dentro de uma unidade. */
 export async function cadastrarLocal(_estado: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> {
   await exigirSessao();
-  const valores = lerFormulario(dados, ["nome", "paiId"]);
-  const validacao = regrasDoLocal.safeParse(valores);
+  const valores = lerFormulario(dados, ["paiId", "novaUnidade", "departamento"]);
+  const validacao = regrasDoNovoLocal.safeParse(valores);
   if (!validacao.success) return { erros: errosPorCampo(validacao.error), valores };
 
-  const resultado = await criarLocal(obterBanco(), validacao.data);
+  const resultado = await criarUnidadeEDepartamento(obterBanco(), {
+    unidadeId: validacao.data.paiId,
+    novaUnidade: validacao.data.novaUnidade,
+    departamento: validacao.data.departamento,
+  });
   if (!resultado.criado) return { erros: resultado.erros, valores };
 
   atualizarTelas();

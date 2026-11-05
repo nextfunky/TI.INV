@@ -13,6 +13,7 @@ import { caminhoDeCima, comOsDeDentro, montarCaminhos, podeFicarDentro } from "@
 import {
   contagensDosLocais,
   criarLocal,
+  criarUnidadeEDepartamento,
   editarLocal,
   excluirLocal,
   itensParaTrazer,
@@ -98,21 +99,21 @@ describe("árvore (sem banco)", () => {
   });
 });
 
-describe("cadastro de locais", () => {
+describe("cadastro de locais (unidade e departamento)", () => {
   it("guarda o caminho e lista em ordem de caminho", async () => {
     const filial = await local("Filial 04");
-    const andar = await local("2º andar", filial);
-    await local("Financeiro", andar);
-    await local("Assistência técnica");
+    await local("Financeiro", filial);
+    await local("Estoque da TI", filial);
+    await local("Aparecida do Taboado");
     expect((await listarLocais(db)).map((l) => [l.caminho, l.nivel])).toEqual([
-      ["Assistência técnica", 0],
+      ["Aparecida do Taboado", 0],
       ["Filial 04", 0],
-      ["Filial 04 › 2º andar", 1],
-      ["Filial 04 › 2º andar › Financeiro", 2],
+      ["Filial 04 › Estoque da TI", 1],
+      ["Filial 04 › Financeiro", 1],
     ]);
   });
 
-  it("não repete nome dentro do mesmo pai, mas pode em pais diferentes", async () => {
+  it("não repete nome dentro da mesma unidade, mas pode em unidades diferentes", async () => {
     const a = await local("Filial 04");
     const b = await local("Filial 03");
     await local("Financeiro", a);
@@ -124,29 +125,37 @@ describe("cadastro de locais", () => {
     expect((await criarLocal(db, { nome: "filial 04", paiId: null })).criado).toBe(false);
   });
 
-  it("renomear ou mover atualiza o caminho de todos os de dentro", async () => {
+  it("sempre dois níveis: departamento só dentro de unidade", async () => {
     const filial = await local("Filial 04");
-    const andar = await local("2º andar", filial);
-    const fin = await local("Financeiro", andar);
+    const fin = await local("Financeiro", filial);
+    expect(await criarLocal(db, { nome: "Sala 1", paiId: fin })).toEqual({ criado: false, erros: { paiId: "Escolha uma unidade." } });
+    const outra = await local("Filial 03");
+    expect(await editarLocal(db, outra, { nome: "Filial 03", paiId: fin })).toMatchObject({ salvo: false });
+    // Uma unidade que já tem departamentos não vira departamento.
+    expect(await editarLocal(db, filial, { nome: "Filial 04", paiId: outra })).toEqual({
+      salvo: false,
+      erros: { paiId: "Uma unidade com departamentos não pode virar departamento." },
+    });
+  });
+
+  it("o banco também recusa um terceiro nível", async () => {
+    const filial = await local("Filial 04");
+    const fin = await local("Financeiro", filial);
+    await expect(db.execute(sql`insert into locais (nome, pai_id, caminho) values ('Sala', ${fin}, 'x')`)).rejects.toThrow();
+  });
+
+  it("renomear a unidade atualiza os departamentos; mover o departamento muda o caminho", async () => {
+    const filial = await local("Filial 04");
+    const fin = await local("Financeiro", filial);
     await editarLocal(db, filial, { nome: "Matriz", paiId: null });
     const outra = await local("Filial 03");
-    await editarLocal(db, andar, { nome: "2º andar", paiId: outra });
+    await editarLocal(db, fin, { nome: "Financeiro", paiId: outra });
     const caminhos = Object.fromEntries((await listarLocais(db)).map((l) => [l.id, l.caminho]));
-    expect(caminhos[fin]).toBe("Filial 03 › 2º andar › Financeiro");
+    expect(caminhos[fin]).toBe("Filial 03 › Financeiro");
     expect(caminhos[filial]).toBe("Matriz");
   });
 
-  it("recusa ciclos", async () => {
-    const a = await local("Filial 04");
-    const b = await local("2º andar", a);
-    expect(await editarLocal(db, a, { nome: "Filial 04", paiId: b })).toEqual({
-      salvo: false,
-      erros: { paiId: "Um local não pode ficar dentro dele mesmo." },
-    });
-    expect(await editarLocal(db, a, { nome: "Filial 04", paiId: a })).toMatchObject({ salvo: false });
-  });
-
-  it("só exclui um local vazio: sem locais dentro, pessoas nem itens (nem descartados)", async () => {
+  it("só exclui um local vazio: sem departamentos, pessoas nem itens (nem descartados)", async () => {
     const filial = await local("Filial 04");
     const sala = await local("Sala da TI", filial);
     const recepcao = await local("Recepção", filial);
@@ -157,6 +166,50 @@ describe("cadastro de locais", () => {
     expect(await excluirLocal(db, sala)).toMatchObject({ excluido: false, motivo: "nao_vazio" });
     expect(await excluirLocal(db, recepcao)).toMatchObject({ excluido: false, motivo: "nao_vazio" });
     expect(await excluirLocal(db, vazio)).toEqual({ excluido: true, caminho: "Vazio" });
+  });
+});
+
+describe("formulário Novo local (Unidade e Departamento)", () => {
+  it("cria só a unidade nova", async () => {
+    const r = await criarUnidadeEDepartamento(db, { unidadeId: "nova", novaUnidade: "Aparecida do Taboado", departamento: "" });
+    expect(r).toMatchObject({ criado: true, local: { caminho: "Aparecida do Taboado", paiId: null } });
+  });
+
+  it("cria a unidade nova com um departamento", async () => {
+    const r = await criarUnidadeEDepartamento(db, { unidadeId: "nova", novaUnidade: "Aparecida do Taboado", departamento: "Financeiro" });
+    expect(r).toMatchObject({ criado: true, local: { caminho: "Aparecida do Taboado › Financeiro" } });
+  });
+
+  it("cria um departamento numa unidade que já existe", async () => {
+    const u = await local("Filial 04");
+    const r = await criarUnidadeEDepartamento(db, { unidadeId: u, novaUnidade: "", departamento: "RH" });
+    expect(r).toMatchObject({ criado: true, local: { caminho: "Filial 04 › RH" } });
+  });
+
+  it("explica o que falta ou está repetido, sem deixar unidade pela metade", async () => {
+    const u = await local("Filial 04");
+    await local("RH", u);
+    expect(await criarUnidadeEDepartamento(db, { unidadeId: u, novaUnidade: "", departamento: "" })).toEqual({
+      criado: false,
+      erros: { departamento: "Informe o departamento." },
+    });
+    expect(await criarUnidadeEDepartamento(db, { unidadeId: "nova", novaUnidade: "", departamento: "RH" })).toEqual({
+      criado: false,
+      erros: { novaUnidade: "Informe o nome da unidade." },
+    });
+    expect(await criarUnidadeEDepartamento(db, { unidadeId: "nova", novaUnidade: "FILIAL 04", departamento: "" })).toEqual({
+      criado: false,
+      erros: { novaUnidade: "Já existe uma unidade com este nome." },
+    });
+    expect(await criarUnidadeEDepartamento(db, { unidadeId: u, novaUnidade: "", departamento: "rh" })).toEqual({
+      criado: false,
+      erros: { departamento: "Já existe um departamento com este nome nesta unidade." },
+    });
+    const dep = (await listarLocais(db)).find((l) => l.nome === "RH")!;
+    expect(await criarUnidadeEDepartamento(db, { unidadeId: dep.id, novaUnidade: "", departamento: "Sala" })).toEqual({
+      criado: false,
+      erros: { paiId: "Escolha uma unidade." },
+    });
   });
 });
 
@@ -206,15 +259,14 @@ describe("local na pessoa e no item", () => {
 });
 
 describe("filtro por local no Inventário", () => {
-  it("inclui os locais de dentro, e 'Sem local definido' pega os dois casos", async () => {
+  it("a unidade inclui os departamentos, e 'Sem local definido' pega os dois casos", async () => {
     const filial = await local("Filial 04");
-    const andar = await local("2º andar", filial);
-    const fin = await local("Financeiro", andar);
+    const fin = await local("Financeiro", filial);
     const outra = await local("Filial 03");
     const joao = await pessoa("João Lima", fin);
     const semLocal = await pessoa("Sem Lugar");
-    await novoItem("DSK", { usuarioId: joao }); // DSK0001: Filial 04 › 2º andar › Financeiro (pela pessoa)
-    await novoItem("MON", { localId: andar }); // MON0001: Filial 04 › 2º andar
+    await novoItem("DSK", { usuarioId: joao }); // DSK0001: Filial 04 › Financeiro (pela pessoa)
+    await novoItem("MON", { localId: filial }); // MON0001: só na unidade
     await novoItem("TEC", { localId: outra }); // TEC0001: Filial 03
     await novoItem("MOU", { usuarioId: semLocal }); // MOU0001: pessoa sem local
     await novoItem("HST"); // HST0001: sem usuário e sem local

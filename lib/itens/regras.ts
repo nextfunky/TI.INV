@@ -108,7 +108,22 @@ export const regrasDoColaborador = z.object({
   localId: localOpcional.optional().transform((v) => v ?? null),
 });
 
-/** Nome do local e onde ele fica ("Dentro de"). */
+const nomeDeLocal = z
+  .string()
+  .transform((v) => v.trim().replace(/\s+/g, " "))
+  .pipe(z.string().max(80, "Use no máximo 80 caracteres."));
+
+/** "Novo local": a unidade (existente ou nova) e, se quiser, o departamento. */
+export const regrasDoNovoLocal = z.object({
+  paiId: z
+    .string()
+    .regex(/^(\d+|nova)$/, "Escolha uma unidade.")
+    .transform((v) => (v === "nova" ? ("nova" as const) : Number(v))),
+  novaUnidade: nomeDeLocal,
+  departamento: nomeDeLocal,
+});
+
+/** Editar local: o nome e, para um departamento, a unidade em que ele fica. */
 export const regrasDoLocal = z.object({
   nome: z
     .string()

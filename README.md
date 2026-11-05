@@ -9,7 +9,7 @@ Cada equipamento, quem usa e onde está. Sistema interno da equipe de TI, usado 
 | 1 | Base: primeiro acesso, login, alterar senha, banco, visual e topo | ✅ feita |
 | 2 | Tipos e itens: códigos, formulário, Inventário, detalhe, busca rápida, Início completo e tela de tipos | ✅ feita |
 | 3 | Colaboradores e alocação, campo Condição, busca na lista e filtros por tipo e condição | ✅ feita |
-| 4 | Locais: árvore, local da pessoa e dos itens, página do local, filtro por local | ✅ feita |
+| 4 | Locais: unidades e departamentos, local da pessoa e dos itens, página do local, filtro por local | ✅ feita |
 | 5 | Estoque de materiais (por quantidade) e importação da planilha | ⬜ próxima |
 | 6 | Movimentações (histórico) | ⬜ |
 | 7 | Mapa: desenhar | ⬜ |

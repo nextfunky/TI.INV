@@ -9,16 +9,29 @@ const ACAO =
   "rounded-md px-2 py-1 text-13 font-medium transition-[color,background-color,opacity] duration-150 hover:bg-gray-100";
 
 /**
- * As ações de cada linha da árvore: "+ Dentro", "Editar" e "Excluir" (só nos
- * vazios). No computador aparecem ao passar o mouse; no celular, sempre.
+ * As ações de cada linha da lista: "+ Departamento" (nas unidades), "Editar" e
+ * "Excluir" (só nos vazios). No computador aparecem ao passar o mouse; no celular, sempre.
  */
-export function AcoesDaArvore({ id, caminho, vazio }: { id: number; caminho: string; vazio: boolean }) {
+export function AcoesDaArvore({
+  id,
+  caminho,
+  vazio,
+  unidade,
+}: {
+  id: number;
+  caminho: string;
+  vazio: boolean;
+  /** Só as unidades ganham "+ Departamento". */
+  unidade: boolean;
+}) {
   const [excluindo, setExcluindo] = useState(false);
   return (
     <div className="flex shrink-0 items-center gap-1 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
-      <Link href={`/locais/novo?pai=${id}`} className={`${ACAO} text-accent`}>
-        + Dentro
-      </Link>
+      {unidade ? (
+        <Link href={`/locais/novo?pai=${id}`} className={`${ACAO} text-accent`}>
+          + Departamento
+        </Link>
+      ) : null}
       <Link href={`/locais/${id}/editar`} className={`${ACAO} text-gray-600 hover:text-gray-900`}>
         Editar
       </Link>

@@ -21,7 +21,7 @@ export default function PaginaLocais() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <CabecalhoDaPagina
           titulo="Locais"
-          subtitulo="Os lugares da empresa. Um local pode ficar dentro de outro, quantos níveis precisar."
+          subtitulo="As unidades da empresa e os departamentos de cada uma."
         />
         <Link href="/locais/novo" className={classesDoBotao("secundario")}>
           <Plus aria-hidden="true" />
@@ -56,7 +56,7 @@ async function Arvore() {
         <EstadoVazio
           icone={MapPin}
           titulo="Nenhum local cadastrado"
-          texto="Comece pelos lugares maiores, como a filial ou o andar, e depois crie os setores dentro deles. Ou cadastre só os setores."
+          texto="Comece pelas unidades (ex.: Aparecida do Taboado) e depois cadastre os departamentos de cada uma."
           acao={
             <Link href="/locais/novo" className={classesDoBotao("secundario")}>
               <Plus aria-hidden="true" />
@@ -95,14 +95,14 @@ async function Arvore() {
                 </Link>
                 <p className="text-13 text-gray-500">{resumo(c)}</p>
               </div>
-              <AcoesDaArvore id={local.id} caminho={local.caminho} vazio={Boolean(c?.vazio)} />
+              <AcoesDaArvore id={local.id} caminho={local.caminho} vazio={Boolean(c?.vazio)} unidade={local.nivel === 0} />
             </li>
           );
         })}
       </ul>
       <p className="mt-4 text-13 text-gray-500">
-        Clique num local para ver quem e o que está nele. Um local só pode ser excluído quando não tem outros locais,
-        pessoas nem itens.
+        Clique numa unidade ou num departamento para ver quem e o que está nele. Uma unidade só pode ser excluída sem
+        departamentos, pessoas nem itens; um departamento, sem pessoas nem itens.
       </p>
     </>
   );
