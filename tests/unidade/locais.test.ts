@@ -289,8 +289,8 @@ describe("tela e página do local", () => {
     await novoItem("MON", { localId: sala });
     await novoItem("TEC", { localId: sala, status: "descartado" });
     const c = await contagensDosLocais(db);
-    expect(c.get(filial)).toEqual({ pessoas: 2, itensSemUsuario: 1, vazio: false });
-    expect(c.get(sala)).toEqual({ pessoas: 1, itensSemUsuario: 1, vazio: false });
+    expect(c.get(filial)).toEqual({ pessoas: 2, itensSemUsuario: 1, materiais: 0, vazio: false });
+    expect(c.get(sala)).toEqual({ pessoas: 1, itensSemUsuario: 1, materiais: 0, vazio: false });
   });
 
   it("mostra as pessoas e os itens sem usuário do local e dos de dentro", async () => {
@@ -340,7 +340,9 @@ describe("local com materiais", () => {
       quantidade: 0,
     });
     expect(r.criado).toBe(true);
-    expect((await contagensDosLocais(db)).get(estoque)?.vazio).toBe(false);
+    expect((await contagensDosLocais(db)).get(estoque)).toMatchObject({ vazio: false, materiais: 1 });
+    // A unidade soma os materiais dos departamentos.
+    expect((await contagensDosLocais(db)).get(filial)).toMatchObject({ materiais: 1 });
     expect(await excluirLocal(db, estoque)).toMatchObject({ excluido: false, motivo: "nao_vazio" });
   });
 });

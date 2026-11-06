@@ -101,6 +101,7 @@ async function Local({ params, searchParams }: Pick<Props, "params" | "searchPar
                 deCima ? `Departamento de ${deCima}` : "Unidade",
                 plural(pessoas.length, "pessoa", "pessoas"),
                 plural(itens.length, "item sem usuário", "itens sem usuário"),
+                materiais.total ? plural(materiais.total, "material", "materiais") : null,
               )}
             </p>
           </div>
@@ -139,10 +140,11 @@ async function Local({ params, searchParams }: Pick<Props, "params" | "searchPar
                     <Folder aria-hidden="true" className="size-4 shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1 font-medium">{f.nome}</span>
                     <span className="text-13 text-gray-500">
-                      {c && (c.pessoas || c.itensSemUsuario)
+                      {c && (c.pessoas || c.itensSemUsuario || c.materiais)
                         ? juntar(
                             c.pessoas ? plural(c.pessoas, "pessoa", "pessoas") : null,
                             c.itensSemUsuario ? plural(c.itensSemUsuario, "item", "itens") : null,
+                            c.materiais ? plural(c.materiais, "material", "materiais") : null,
                           )
                         : "Vazio"}
                     </span>

@@ -38,10 +38,11 @@ export default function PaginaLocais() {
 }
 
 function resumo(c: ContagemDoLocal | undefined): string {
-  if (!c || (!c.pessoas && !c.itensSemUsuario)) return "Vazio";
+  if (!c || (!c.pessoas && !c.itensSemUsuario && !c.materiais)) return "Vazio";
   return juntar(
     c.pessoas ? plural(c.pessoas, "pessoa", "pessoas") : null,
     c.itensSemUsuario ? plural(c.itensSemUsuario, "item sem usuário", "itens sem usuário") : null,
+    c.materiais ? plural(c.materiais, "material", "materiais") : null,
   );
 }
 
@@ -102,7 +103,7 @@ async function Arvore() {
       </ul>
       <p className="mt-4 text-13 text-gray-500">
         Clique numa unidade ou num departamento para ver quem e o que está nele. Uma unidade só pode ser excluída sem
-        departamentos, pessoas nem itens; um departamento, sem pessoas nem itens.
+        departamentos, pessoas, itens nem materiais; um departamento, sem pessoas, itens nem materiais.
       </p>
     </>
   );

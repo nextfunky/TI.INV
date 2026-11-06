@@ -38,8 +38,7 @@ export async function PainelDoMaterial({ id, lista, ids }: { id: number; lista: 
   const material = await obterMaterial(db, id);
   const fechar = comMaterial(lista, null);
   const posicao = ids.indexOf(id);
-  const anterior = posicao > 0 ? comMaterial(lista, ids[posicao - 1]) : undefined;
-  const proximo = posicao >= 0 && posicao < ids.length - 1 ? comMaterial(lista, ids[posicao + 1]) : undefined;
+  const enderecos = ids.map((i) => comMaterial(lista, i));
 
   if (!material) {
     return (
@@ -60,7 +59,7 @@ export async function PainelDoMaterial({ id, lista, ids }: { id: number; lista: 
 
   return (
     <aside aria-label={`Detalhes de ${nomeCompleto}`} className={MOLDURA_DO_PAINEL}>
-      <TeclasDoPainel fechar={fechar} anterior={anterior} proximo={proximo} />
+      <TeclasDoPainel fechar={fechar} enderecos={enderecos} atual={posicao} />
 
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-5 py-3 lg:hidden">
         <Link href={fechar} scroll={false} className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700">

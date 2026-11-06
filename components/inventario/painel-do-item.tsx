@@ -88,8 +88,7 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
   const item = await obterItemPorCodigo(db, codigo);
   const fechar = comItem(lista, null);
   const posicao = codigos.indexOf(item?.codigo ?? codigo);
-  const anterior = posicao > 0 ? comItem(lista, codigos[posicao - 1]) : undefined;
-  const proximo = posicao >= 0 && posicao < codigos.length - 1 ? comItem(lista, codigos[posicao + 1]) : undefined;
+  const enderecos = codigos.map((c) => comItem(lista, c));
 
   const moldura = MOLDURA_DO_PAINEL;
 
@@ -115,7 +114,7 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
 
   return (
     <aside aria-label={`Detalhes de ${item.codigo}`} className={moldura}>
-      <TeclasDoPainel fechar={fechar} anterior={anterior} proximo={proximo} />
+      <TeclasDoPainel fechar={fechar} enderecos={enderecos} atual={posicao} />
 
       {/* No celular, o painel cobre a lista: o caminho de volta fica no alto. */}
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-5 py-3 lg:hidden">

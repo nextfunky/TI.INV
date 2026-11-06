@@ -182,6 +182,8 @@ export type ContagemDoLocal = {
   pessoas: number;
   /** Itens sem usuário (sem os descartados) no local e nos de dentro. */
   itensSemUsuario: number;
+  /** Materiais (cadastros, não unidades) no local e nos de dentro. */
+  materiais: number;
   /** Nada dentro: nem locais, nem pessoas, nem itens (contando descartados), nem materiais. */
   vazio: boolean;
 };
@@ -203,10 +205,14 @@ export async function contagensDosLocais(db: Banco): Promise<Map<number, Contage
     .from(itens)
     .where(sql`${itens.localId} is not null`)
     .groupBy(itens.localId);
-  const comMateriais = new Set(
-    (await db.selectDistinct({ localId: materiais.localId }).from(materiais).where(sql`${materiais.localId} is not null`)).map(
-      (m) => m.localId!,
-    ),
+  const materiaisPorLocal = new Map(
+    (
+      await db
+        .select({ localId: materiais.localId, total: count() })
+        .from(materiais)
+        .where(sql`${materiais.localId} is not null`)
+        .groupBy(materiais.localId)
+    ).map((m) => [m.localId!, m.total]),
   );
 
   const direto = new Map<number, { pessoas: number; ativos: number; todos: number }>();
@@ -222,7 +228,8 @@ export async function contagensDosLocais(db: Banco): Promise<Map<number, Contage
     resultado.set(l.id, {
       pessoas: ids.reduce((s, id) => s + direto.get(id)!.pessoas, 0),
       itensSemUsuario: ids.reduce((s, id) => s + direto.get(id)!.ativos, 0),
-      vazio: !temFilho.has(l.id) && d.pessoas === 0 && d.todos === 0 && !comMateriais.has(l.id),
+      materiais: ids.reduce((s, id) => s + (materiaisPorLocal.get(id) ?? 0), 0),
+      vazio: !temFilho.has(l.id) && d.pessoas === 0 && d.todos === 0 && !materiaisPorLocal.has(l.id),
     });
   }
   return resultado;
