@@ -9,6 +9,7 @@ import { EstadoVazio } from "@/components/estado-vazio";
 import { ComPainel, PainelCarregando } from "@/components/inventario/painel-do-item";
 import { FiltrosDosMateriaisNaTela } from "@/components/materiais/filtros";
 import { PainelDoMaterial } from "@/components/materiais/painel-do-material";
+import { RelatorioDeConferencia } from "@/components/relatorios/conferencia";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { cx } from "@/lib/classes";
 import { obterBanco } from "@/lib/db";
@@ -72,10 +73,30 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
               : "O que é controlado por quantidade: cabos, toners, mousepads…"
           }
         />
-        <Link href="/materiais/novo" className={classesDoBotao("secundario")}>
-          <Plus aria-hidden="true" />
-          Novo material
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {resumo.materiais ? (
+            <RelatorioDeConferencia
+              origem="materiais"
+              filtrosAtuais={Object.fromEntries(
+                [
+                  ["mq", filtros.busca],
+                  ["grupos", filtros.grupo],
+                  ["local", filtros.local ? String(filtros.local) : undefined],
+                ].filter((par): par is [string, string] => Boolean(par[1])),
+              )}
+              resumoDosFiltros={[
+                filtros.grupo ? NOME_DO_GRUPO[filtros.grupo] : null,
+                filtros.local ? (locais.find((l) => l.id === filtros.local)?.caminho ?? null) : null,
+                filtros.busca ? `Busca “${filtros.busca}”` : null,
+              ].filter((t): t is string => Boolean(t))}
+              locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+            />
+          ) : null}
+          <Link href="/materiais/novo" className={classesDoBotao("secundario")}>
+            <Plus aria-hidden="true" />
+            Novo material
+          </Link>
+        </div>
       </div>
 
       {resumo.materiais ? (

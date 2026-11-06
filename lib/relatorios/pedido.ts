@@ -1,0 +1,45 @@
+import { lerFiltros, type FiltrosDoInventario } from "@/lib/itens/filtros";
+import { CATEGORIAS, type Categoria } from "@/lib/itens/valores";
+import { GRUPOS, type Grupo } from "@/lib/materiais/valores";
+
+/**
+ * O pedido de relatório de conferência, lido do endereço. Não depende do banco.
+ *
+ *   /relatorios/conferencia?itens=1&materiais=1&categorias=periferico&categorias=movel&grupos=cabos&local=3
+ *
+ * Os filtros do Inventário (q, categoria, status, tipo, condicao, pessoa, local) valem para os itens;
+ * os dos materiais usam mq (busca) e grupos. O local vale para os dois.
+ */
+export type PedidoDeConferencia = {
+  itens: boolean;
+  materiais: boolean;
+  filtrosDosItens: Omit<FiltrosDoInventario, "pagina"> & { categorias: Categoria[] };
+  filtrosDosMateriais: { busca?: string; grupos: Grupo[]; local?: number };
+};
+
+type Parametros = Record<string, string | string[] | undefined>;
+
+/** Aceita "a,b" e também a mesma chave repetida (?categorias=a&categorias=b). */
+function lista<T extends string>(valores: readonly T[], parametro: string | string[] | undefined): T[] {
+  const partes = (Array.isArray(parametro) ? parametro : parametro ? [parametro] : []).flatMap((v) => v.split(","));
+  return valores.filter((v) => partes.includes(v));
+}
+
+export function lerPedidoDeConferencia(parametros: Parametros): PedidoDeConferencia {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { pagina, ...filtros } = lerFiltros(parametros);
+  const mq = typeof parametros.mq === "string" ? parametros.mq.trim().slice(0, 120) : "";
+  const itens = parametros.itens === "1";
+  const materiais = parametros.materiais === "1";
+  return {
+    // Sem dizer o que conferir, vale só os itens.
+    itens: itens || !materiais,
+    materiais,
+    filtrosDosItens: { ...filtros, categorias: lista(CATEGORIAS, parametros.categorias) },
+    filtrosDosMateriais: {
+      busca: mq || undefined,
+      grupos: lista(GRUPOS, parametros.grupos),
+      local: typeof filtros.local === "number" ? filtros.local : undefined,
+    },
+  };
+}

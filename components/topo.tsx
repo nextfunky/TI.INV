@@ -15,7 +15,7 @@ import { MenuMovel, MenuPrincipal } from "./menu-principal";
  */
 export function Topo() {
   return (
-    <header className="relative border-b border-gray-200 bg-white">
+    <header className="relative border-b border-gray-200 bg-white print:hidden">
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-6 py-2.5 lg:group-has-[[data-painel]]/app:max-w-[1600px]">
         <Link href="/" className="mr-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-gray-900 xl:mr-4">
           <Logo />

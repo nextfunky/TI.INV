@@ -255,3 +255,37 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Impressão (relatório de conferência): folha A4, sempre no tema claro,
+ * sem o topo do sistema nem os avisos.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :root,
+  :root[data-tema="escuro"],
+  :root:not([data-tema="claro"]) {
+    --color-white: #ffffff;
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+    --color-accent: #0f62fe;
+    color-scheme: light;
+  }
+
+  body {
+    background: #ffffff;
+    font-size: 10pt;
+  }
+}

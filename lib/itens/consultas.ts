@@ -83,9 +83,16 @@ export function resumoDoInventario(
   return `${plural(totais.total, "item", "itens")} · ${textoPorCategoria(totais.porCategoria)}`;
 }
 
-/** A lista do Inventário: filtrada, em ordem de código, 50 por página. */
-export async function listarItens(db: Banco, filtros: FiltrosDoInventario) {
+/**
+ * As condições dos filtros do Inventário (também usadas no relatório de conferência).
+ * Com `categorias`, vale qualquer uma das categorias da lista.
+ */
+export async function condicoesDoInventario(
+  db: Banco,
+  filtros: Omit<FiltrosDoInventario, "pagina"> & { categorias?: Categoria[] },
+): Promise<SQL | undefined> {
   const condicoes: Array<SQL | undefined> = [];
+  if (filtros.categorias?.length) condicoes.push(inArray(tiposDeItem.categoria, filtros.categorias));
   if (filtros.busca) condicoes.push(condicaoDeBusca(filtros.busca));
   if (filtros.categoria) condicoes.push(eq(tiposDeItem.categoria, filtros.categoria));
   if (filtros.tipo) condicoes.push(eq(itens.tipoId, filtros.tipo));
@@ -99,7 +106,12 @@ export async function listarItens(db: Banco, filtros: FiltrosDoInventario) {
   }
   // Sem filtro de status, os descartados ficam de fora.
   condicoes.push(filtros.status ? eq(itens.status, filtros.status) : ne(itens.status, "descartado"));
-  const onde = and(...condicoes);
+  return and(...condicoes);
+}
+
+/** A lista do Inventário: filtrada, em ordem de código, 50 por página. */
+export async function listarItens(db: Banco, filtros: FiltrosDoInventario) {
+  const onde = await condicoesDoInventario(db, filtros);
 
   const [{ total }] = await db
     .select({ total: count() })

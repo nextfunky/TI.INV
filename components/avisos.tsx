@@ -74,7 +74,7 @@ export function Avisos() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed right-4 bottom-20 z-50 sm:bottom-4"
+      className="pointer-events-none fixed right-4 bottom-20 z-50 sm:bottom-4 print:hidden"
     >
       {atual ? (
         <div

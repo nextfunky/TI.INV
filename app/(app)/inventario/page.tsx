@@ -9,6 +9,7 @@ import { EstadoVazio } from "@/components/estado-vazio";
 import { FiltrosDoInventario } from "@/components/inventario/filtros";
 import { ComPainel, PainelCarregando, PainelDoItem } from "@/components/inventario/painel-do-item";
 import { TabelaDeItens } from "@/components/inventario/tabela-de-itens";
+import { RelatorioDeConferencia } from "@/components/relatorios/conferencia";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { obterColaborador } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/itens/consultas";
 import { comItem, itemDoEndereco } from "@/lib/itens/painel";
 import { listarTipos } from "@/lib/itens/tipos";
+import { NOME_DA_CATEGORIA, NOME_DA_CONDICAO, NOME_DO_STATUS } from "@/lib/itens/valores";
 import { listarLocais } from "@/lib/locais/servico";
 
 export const metadata: Metadata = { title: "Inventário" };
@@ -51,6 +53,16 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
   ]);
 
   const lista = enderecoDoInventario(filtros);
+  // Os filtros da tela em frases curtas, para a janela do relatório.
+  const resumoDosFiltros = [
+    filtros.categoria ? NOME_DA_CATEGORIA[filtros.categoria].filtro : null,
+    filtros.tipo ? (tipos.find((t) => t.id === filtros.tipo)?.nome ?? null) : null,
+    filtros.status ? NOME_DO_STATUS[filtros.status] : null,
+    filtros.condicao ? NOME_DA_CONDICAO[filtros.condicao] : null,
+    filtros.local === "sem" ? "Sem local definido" : filtros.local ? (locais.find((l) => l.id === filtros.local)?.caminho ?? null) : null,
+    pessoa ? `Com ${pessoa.nome}` : null,
+    filtros.busca ? `Busca “${filtros.busca}”` : null,
+  ].filter((t): t is string => Boolean(t));
   const painel = aberto ? (
     <Suspense key={aberto} fallback={<PainelCarregando />}>
       <PainelDoItem codigo={aberto} lista={lista} codigos={itens.itens.map((i) => i.codigo)} />
@@ -61,10 +73,18 @@ async function Inventario({ searchParams }: Pick<PageProps<"/inventario">, "sear
     <ComPainel painel={painel}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <CabecalhoDaPagina titulo="Inventário" subtitulo={resumoDoInventario(totais, itens.total, filtrado)} />
-        <Link href="/inventario/importar" className={classesDoBotao("secundario")}>
-          <Upload aria-hidden="true" />
-          Importação
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <RelatorioDeConferencia
+            origem="itens"
+            filtrosAtuais={Object.fromEntries(new URLSearchParams(lista.split("?")[1] ?? "").entries())}
+            resumoDosFiltros={resumoDosFiltros}
+            locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+          />
+          <Link href="/inventario/importar" className={classesDoBotao("secundario")}>
+            <Upload aria-hidden="true" />
+            Importação
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8">
