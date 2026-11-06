@@ -39,6 +39,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await db.execute(sql`delete from historico_de_itens`);
   await db.execute(sql`delete from itens`);
   await db.execute(sql`delete from colaboradores`);
   await db.execute(sql`delete from tipos_de_item`);

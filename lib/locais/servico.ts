@@ -2,6 +2,8 @@ import { and, count, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm
 
 import { colaboradores, itens, locais, materiais } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
+import { idsDosItensDe } from "@/lib/colaboradores/servico";
+import { estadoDosItens, registrarMudancas } from "@/lib/historico/servico";
 import { condicaoDeBusca, ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
 import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/servico";
 
@@ -299,22 +301,30 @@ export async function itensParaTrazer(db: Banco, localId: number, termo: string)
 export async function trazerPessoas(db: Banco, localId: number, ids: number[]): Promise<number | null> {
   if (!(await obterLocal(db, localId))) return null;
   if (!ids.length) return 0;
-  const movidas = await db
-    .update(colaboradores)
-    .set({ localId, atualizadoEm: sql`now()` })
-    .where(inArray(colaboradores.id, ids))
-    .returning({ id: colaboradores.id });
-  return movidas.length;
+  return db.transaction(async (tx) => {
+    const antes = await estadoDosItens(tx, await idsDosItensDe(tx, ids));
+    const movidas = await tx
+      .update(colaboradores)
+      .set({ localId, atualizadoEm: sql`now()` })
+      .where(inArray(colaboradores.id, ids))
+      .returning({ id: colaboradores.id });
+    await registrarMudancas(tx, antes);
+    return movidas.length;
+  });
 }
 
 /** Coloca os itens sem usuário escolhidos neste local. */
 export async function trazerItens(db: Banco, localId: number, ids: number[]): Promise<number | null> {
   if (!(await obterLocal(db, localId))) return null;
   if (!ids.length) return 0;
-  const movidos = await db
-    .update(itens)
-    .set({ localId, atualizadoEm: sql`now()` })
-    .where(and(inArray(itens.id, ids), isNull(itens.usuarioId), ne(itens.status, "descartado")))
-    .returning({ id: itens.id });
-  return movidos.length;
+  return db.transaction(async (tx) => {
+    const antes = await estadoDosItens(tx, ids);
+    const movidos = await tx
+      .update(itens)
+      .set({ localId, atualizadoEm: sql`now()` })
+      .where(and(inArray(itens.id, ids), isNull(itens.usuarioId), ne(itens.status, "descartado")))
+      .returning({ id: itens.id });
+    await registrarMudancas(tx, antes);
+    return movidos.length;
+  });
 }

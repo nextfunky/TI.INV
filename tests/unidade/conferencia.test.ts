@@ -31,7 +31,7 @@ let filial = 0;
 let jales = 0;
 
 beforeEach(async () => {
-  await db.execute(sql`truncate table movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`);
+  await db.execute(sql`truncate table historico_de_itens, movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`);
   // Os tipos como no sistema de verdade: os 10 de início, os 12 da planilha e as categorias novas.
   await db.execute(sql.raw(readFileSync(`drizzle/${MIGRACOES[0]}.sql`, "utf8")));
   await db.execute(sql.raw(readFileSync(`drizzle/${MIGRACOES[1]}.sql`, "utf8").split("--> statement-breakpoint").at(-1)!));

@@ -17,6 +17,7 @@ const TELAS = [
   { href: "/materiais", rotulo: "Materiais" },
   { href: "/colaboradores", rotulo: "Colaboradores" },
   { href: "/locais", rotulo: "Locais" },
+  { href: "/historico", rotulo: "Histórico" },
 ];
 
 function estaNaTela(atual: string | null, href: string): boolean {

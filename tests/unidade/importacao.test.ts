@@ -15,6 +15,7 @@ import {
   type AbaLida,
   type Celula,
 } from "@/lib/importacao/planilha";
+import { historicoDoItem } from "@/lib/historico/servico";
 import { importarPlanilha, previaDaImportacao } from "@/lib/importacao/servico";
 import { listarItens } from "@/lib/itens/consultas";
 import { criarItem, obterItemPorCodigo } from "@/lib/itens/servico";
@@ -38,7 +39,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await db.execute(
-    sql`truncate table importacoes, movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`,
+    sql`truncate table historico_de_itens, importacoes, movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`,
   );
   await db.execute(sql.raw(TIPOS_PADRAO));
   await db.execute(sql.raw(TIPOS_NOVOS));
@@ -190,6 +191,9 @@ describe("prévia e importação (com o banco)", () => {
 
     expect(await obterItemPorCodigo(db, "TEL0002")).toMatchObject({ marca: "Cisco", condicao: "novo", local: { caminho: "Filial 04" } });
     expect(await obterItemPorCodigo(db, "TEL0003")).toMatchObject({ numeroSerie: "FCH123" });
+    // Cada item importado começa o histórico com o cadastro.
+    const importado = (await obterItemPorCodigo(db, "TEL0003"))!;
+    expect(await historicoDoItem(db, importado.id)).toMatchObject([{ evento: "cadastro", paraLocal: "Filial 04", observacao: "Importado de inventario.xlsx" }]);
     expect(await obterItemPorCodigo(db, "DSK0001")).toMatchObject({ hostname: "FIN-PC-01", status: "em_uso", usuario: { nome: "Carla Dias" } });
     // Campos de computador não valem para monitor; o departamento novo fica dentro da unidade que já existia.
     expect(await obterItemPorCodigo(db, "MON0001")).toMatchObject({ hostname: null, local: { caminho: "Filial 04 › Estoque da TI" } });

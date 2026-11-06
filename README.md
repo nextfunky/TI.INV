@@ -12,8 +12,8 @@ Cada equipamento, quem usa e onde está, e os materiais controlados por quantida
 | 4 | Locais: unidades e departamentos, local da pessoa e dos itens, página do local, filtro por local | ✅ feita |
 | 5A | Materiais (por quantidade): cadastro, entrada, saída, ajuste de contagem, histórico e materiais entregues na página da pessoa | ✅ feita |
 | 5B | Importação de planilha (.xlsx) com prévia, modelo para baixar e 12 tipos novos | ✅ feita |
-| 6 | Movimentações (histórico) | ⬜ próxima |
-| 7 | Mapa: desenhar | ⬜ |
+| 6 | Histórico: registro automático de entregas, devoluções, trocas e mudanças de local, ações rápidas no painel, tela Histórico e Atividade recente | ✅ feita |
+| 7 | Mapa: desenhar | ⬜ próxima |
 | 8 | Mapa: posicionar e ver | ⬜ |
 | 9 | Relatórios e exportação | ⬜ |
 | 10 | Publicação (Vercel + Neon + Cloudflare) | ⬜ |

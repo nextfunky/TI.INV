@@ -29,7 +29,7 @@ const aviso = (page: Page) => page.getByRole("status");
 
 test("sem itens, o Início está em ordem e o Inventário convida a cadastrar", async ({ page }) => {
   await expect(page.getByText("Tudo em ordem")).toBeVisible();
-  await expect(page.getByText("Nenhum item cadastrado ainda.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Atividade recente" })).toContainText("Nada registrado ainda.");
 
   const menu = page.getByRole("navigation", { name: "Principal" });
   await menu.getByRole("link", { name: "Inventário" }).click();

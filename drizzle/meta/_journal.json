@@ -64,6 +64,13 @@
       "when": 1793905100458,
       "tag": "0008_categorias-novas",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793978519396,
+      "tag": "0009_historico",
+      "breakpoints": true
     }
   ]
 }

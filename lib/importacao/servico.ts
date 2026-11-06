@@ -5,6 +5,7 @@ import { colaboradores, importacoes, itens, locais, materiais, movimentosDeMater
 import type { Banco } from "@/lib/db/tipos";
 import { aplicarCategoria, montarCodigo } from "@/lib/itens/servico";
 import type { Categoria } from "@/lib/itens/valores";
+import { registrarCadastro } from "@/lib/historico/servico";
 import { criarLocal } from "@/lib/locais/servico";
 import { formatarDataHora } from "@/lib/texto/data";
 
@@ -209,7 +210,12 @@ export async function importarPlanilha(
           codigo,
         };
       });
-      for (let i = 0; i < novosItens.length; i += 500) await tx.insert(itens).values(novosItens.slice(i, i + 500));
+      const idsNovos: number[] = [];
+      for (let i = 0; i < novosItens.length; i += 500) {
+        const inseridos = await tx.insert(itens).values(novosItens.slice(i, i + 500)).returning({ id: itens.id });
+        idsNovos.push(...inseridos.map((r) => r.id));
+      }
+      await registrarCadastro(tx, idsNovos, `Importado de ${arquivo.nome}`);
 
       for (let i = 0; i < lida.materiais.length; i += 500) {
         const parte = lida.materiais.slice(i, i + 500);

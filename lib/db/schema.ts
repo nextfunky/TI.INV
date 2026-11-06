@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { CATEGORIAS, CONDICOES, STATUS } from "@/lib/itens/valores";
+import { EVENTOS } from "@/lib/historico/valores";
 import { GRUPOS, TIPOS_DE_MOVIMENTO } from "@/lib/materiais/valores";
 
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();
@@ -243,4 +244,38 @@ export const importacoes = pgTable(
     criadoEm: criadoEm(),
   },
   (t) => [uniqueIndex("importacoes_hash_unico").on(t.hash)],
+);
+
+export const eventoDoHistorico = pgEnum("evento_do_historico", EVENTOS);
+
+/**
+ * O histórico dos itens: cada entrega, devolução, troca de pessoa e mudança de
+ * local, gravado sozinho. Não se edita nem se apaga. Os nomes (código, descrição,
+ * pessoas e locais) ficam guardados como texto, para o histórico continuar
+ * legível mesmo depois que o item for excluído ou alguém for renomeado.
+ */
+export const historicoDeItens = pgTable(
+  "historico_de_itens",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    /** Fica vazio quando o item é excluído (o registro continua). */
+    itemId: integer("item_id").references(() => itens.id, { onDelete: "set null" }),
+    codigo: text("codigo").notNull(),
+    descricao: text("descricao").notNull(),
+    evento: eventoDoHistorico("evento").notNull(),
+    dePessoaId: integer("de_pessoa_id").references(() => colaboradores.id, { onDelete: "set null" }),
+    dePessoa: text("de_pessoa"),
+    paraPessoaId: integer("para_pessoa_id").references(() => colaboradores.id, { onDelete: "set null" }),
+    paraPessoa: text("para_pessoa"),
+    deLocal: text("de_local"),
+    paraLocal: text("para_local"),
+    observacao: text("observacao"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    index("historico_item_id_idx").on(t.itemId, t.id),
+    index("historico_criado_em_idx").on(t.criadoEm),
+    index("historico_de_pessoa_idx").on(t.dePessoaId),
+    index("historico_para_pessoa_idx").on(t.paraPessoaId),
+  ],
 );

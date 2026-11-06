@@ -35,7 +35,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await db.execute(sql`truncate table movimentos_de_material, materiais, itens, colaboradores, locais restart identity`);
+  await db.execute(sql`truncate table historico_de_itens, movimentos_de_material, materiais, itens, colaboradores, locais restart identity`);
 });
 
 async function material(nome: string, quantidade = 0, extra: { grupo?: Grupo; localId?: number | null; marcaModelo?: string } = {}) {

@@ -67,7 +67,7 @@ test("o topo mostra todas as telas, a busca, o + Novo item e o menu da conta", a
   await expect(page).toHaveURL(/\/$/);
 
   const menu = page.getByRole("navigation", { name: "Principal" });
-  await expect(menu.getByRole("link")).toHaveText(["Início", "Inventário", "Materiais", "Colaboradores", "Locais"]);
+  await expect(menu.getByRole("link")).toHaveText(["Início", "Inventário", "Materiais", "Colaboradores", "Locais", "Histórico"]);
   await expect(menu.getByRole("link", { name: "Início" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Buscar item (Ctrl+K)" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Novo item" })).toHaveAttribute("href", "/inventario/novo");

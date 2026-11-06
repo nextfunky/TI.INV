@@ -30,6 +30,7 @@ afterAll(async () => {
 
 // Cada teste começa com os 10 tipos padrão e nenhum item.
 beforeEach(async () => {
+  await db.execute(sql`delete from historico_de_itens`);
   await db.execute(sql`delete from itens`);
   await db.execute(sql`delete from tipos_de_item`);
   await db.execute(sql.raw(TIPOS_PADRAO));

@@ -1,6 +1,7 @@
 import { and, asc, count, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { colaboradores, itens, locais, movimentosDeMaterial } from "@/lib/db/schema";
+import { estadoDosItens, registrarMudancas } from "@/lib/historico/servico";
 import type { Banco } from "@/lib/db/tipos";
 import { condicaoDeBusca, ORDEM_DO_CODIGO } from "@/lib/itens/consultas";
 import { consultaDeItens, juntarItemETipo, type ItemComTipo } from "@/lib/itens/servico";
@@ -65,12 +66,24 @@ export async function editarColaborador(
   const chave = chaveDoNome(nome);
   if (await nomeJaExiste(db, chave, id)) return { salvo: false, erro: NOME_REPETIDO };
   if (!(await localExiste(db, localId))) return { salvo: false, erro: LOCAL_INVALIDO, campo: "localId" };
-  const [salvo] = await db
-    .update(colaboradores)
-    .set({ nome, chave, localId, atualizadoEm: sql`now()` })
-    .where(eq(colaboradores.id, id))
-    .returning({ id: colaboradores.id });
-  return salvo ? { salvo: true } : { salvo: false, naoEncontrado: true };
+  return db.transaction(async (tx) => {
+    // Se a pessoa muda de setor, os itens dela vão junto: cada um ganha um registro no histórico.
+    const antes = await estadoDosItens(tx, await idsDosItensDe(tx, [id]));
+    const [salvo] = await tx
+      .update(colaboradores)
+      .set({ nome, chave, localId, atualizadoEm: sql`now()` })
+      .where(eq(colaboradores.id, id))
+      .returning({ id: colaboradores.id });
+    if (!salvo) return { salvo: false as const, naoEncontrado: true as const };
+    await registrarMudancas(tx, antes);
+    return { salvo: true as const };
+  });
+}
+
+/** Os itens (todos, inclusive descartados) que estão com estas pessoas. */
+export async function idsDosItensDe(db: Banco, pessoas: number[]): Promise<number[]> {
+  if (!pessoas.length) return [];
+  return (await db.select({ id: itens.id }).from(itens).where(inArray(itens.usuarioId, pessoas))).map((i) => i.id);
 }
 
 /** Quantos materiais já saíram para a pessoa (é o histórico dela: impede excluir o cadastro). */
@@ -181,9 +194,9 @@ export async function tambemCom(db: Banco, usuarioId: number, exceto: number) {
 // ─── Vincular e devolver (pela página da pessoa) ───────────────────────────
 
 /** Ao receber uma pessoa, um item em estoque passa para "Em uso" (como no formulário). */
-const STATUS_AO_VINCULAR = sql`case when ${itens.status} = 'em_estoque' then 'em_uso'::status_do_item else ${itens.status} end`;
+export const STATUS_AO_VINCULAR = sql`case when ${itens.status} = 'em_estoque' then 'em_uso'::status_do_item else ${itens.status} end`;
 /** Ao sair da pessoa, um item em uso volta para "Em estoque". */
-const STATUS_AO_DEVOLVER = sql`case when ${itens.status} = 'em_uso' then 'em_estoque'::status_do_item else ${itens.status} end`;
+export const STATUS_AO_DEVOLVER = sql`case when ${itens.status} = 'em_uso' then 'em_estoque'::status_do_item else ${itens.status} end`;
 
 /**
  * Os itens que podem ir para a pessoa: todos menos os descartados e os que
@@ -213,12 +226,14 @@ export async function vincularItens(
     if (!pessoa) return { ok: false as const, motivo: "pessoa_nao_encontrada" as const };
     if (!ids.length) return { ok: true as const, nome: pessoa.nome, codigos: [] };
 
+    const antes = await estadoDosItens(tx, ids);
     const alterados = await tx
       .update(itens)
       // Com usuário, o item fica onde a pessoa está: o local próprio sai.
       .set({ usuarioId: pessoaId, localId: null, status: STATUS_AO_VINCULAR, atualizadoEm: sql`now()` })
       .where(and(inArray(itens.id, ids), ne(itens.status, "descartado")))
       .returning({ codigo: itens.codigo });
+    await registrarMudancas(tx, antes);
     return { ok: true as const, nome: pessoa.nome, codigos: alterados.map((a) => a.codigo).sort() };
   });
 }
@@ -229,10 +244,15 @@ export async function devolverItem(
   pessoaId: number,
   itemId: number,
 ): Promise<{ codigo: string; voltouAoEstoque: boolean } | null> {
-  const [item] = await db
-    .update(itens)
-    .set({ usuarioId: null, status: STATUS_AO_DEVOLVER, atualizadoEm: sql`now()` })
-    .where(and(eq(itens.id, itemId), eq(itens.usuarioId, pessoaId)))
-    .returning({ codigo: itens.codigo, status: itens.status });
-  return item ? { codigo: item.codigo, voltouAoEstoque: item.status === "em_estoque" } : null;
+  return db.transaction(async (tx) => {
+    const antes = await estadoDosItens(tx, [itemId]);
+    const [item] = await tx
+      .update(itens)
+      .set({ usuarioId: null, status: STATUS_AO_DEVOLVER, atualizadoEm: sql`now()` })
+      .where(and(eq(itens.id, itemId), eq(itens.usuarioId, pessoaId)))
+      .returning({ codigo: itens.codigo, status: itens.status });
+    if (!item) return null;
+    await registrarMudancas(tx, antes);
+    return { codigo: item.codigo, voltouAoEstoque: item.status === "em_estoque" };
+  });
 }

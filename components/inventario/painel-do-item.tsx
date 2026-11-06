@@ -2,7 +2,7 @@ import { ArrowLeft, MapPin, Pencil, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { tambemCom } from "@/lib/colaboradores/servico";
+import { listarParaEscolha, tambemCom } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
 import { cx } from "@/lib/classes";
 import { situacaoDaGarantia } from "@/lib/itens/garantia";
@@ -10,14 +10,18 @@ import { nomeCompletoDoItem, subtituloDoItem, tituloDoItem } from "@/lib/itens/n
 import { comItem } from "@/lib/itens/painel";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
 import { NOME_DA_CONDICAO } from "@/lib/itens/valores";
+import { historicoDoItem, totalDoHistorico } from "@/lib/historico/servico";
 import { caminhoDeCima } from "@/lib/locais/arvore";
+import { listarLocais } from "@/lib/locais/servico";
 import { FUSO, formatarData, hojeEmSaoPaulo, tempoDesde } from "@/lib/texto/data";
 import { juntar } from "@/lib/texto/plural";
 
 import { Avatar } from "../avatar";
 import { classesDoBotao } from "../botao";
+import { ListaDoHistorico } from "../historico/lista";
 import { IconeDoTipo } from "../icone-do-tipo";
 import { EtiquetaDeStatus } from "../status";
+import { AcoesRapidas } from "./acoes-rapidas";
 import { ExcluirDoPainel } from "./excluir-do-painel";
 import { TeclasDoPainel } from "./teclas-do-painel";
 
@@ -54,6 +58,9 @@ export function PainelCarregando() {
     </div>
   );
 }
+
+/** Quantos registros do histórico o painel mostra (o resto, na tela Histórico). */
+const REGISTROS_NO_PAINEL = 8;
 
 const formatoDeData = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -106,7 +113,13 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
     );
   }
 
-  const outros = item.usuario ? await tambemCom(db, item.usuario.id, item.id) : null;
+  const [outros, historico, totalNoHistorico, pessoas, todosOsLocais] = await Promise.all([
+    item.usuario ? tambemCom(db, item.usuario.id, item.id) : null,
+    historicoDoItem(db, item.id, REGISTROS_NO_PAINEL),
+    totalDoHistorico(db, item.id),
+    listarParaEscolha(db),
+    listarLocais(db),
+  ]);
   const agora = new Date();
   const titulo = tituloDoItem(item);
   const marcaEModelo = [item.marca, item.modelo].filter(Boolean).join(" ");
@@ -179,6 +192,23 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
           )}
         </div>
       </Bloco>
+
+      {item.status !== "descartado" ? (
+        <div className="px-5 pb-4">
+          <AcoesRapidas
+            item={{
+              id: item.id,
+              codigo: item.codigo,
+              titulo,
+              usuarioId: item.usuario?.id ?? null,
+              usuario: item.usuario?.nome ?? null,
+              descartado: false,
+            }}
+            pessoas={pessoas.map(({ id, nome }) => ({ id, nome }))}
+            locais={todosOsLocais.map(({ id, caminho }) => ({ id, caminho }))}
+          />
+        </div>
+      ) : null}
 
       <Bloco titulo="Identificação">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -258,6 +288,24 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
           </Link>
         </Bloco>
       ) : null}
+
+      <Bloco titulo={totalNoHistorico ? `Histórico · ${totalNoHistorico}` : "Histórico"}>
+        {historico.length ? (
+          <>
+            <ListaDoHistorico registros={historico} />
+            {totalNoHistorico > historico.length ? (
+              <Link
+                href={`/historico?item=${item.codigo}`}
+                className="mt-3 inline-block text-13 font-medium text-accent transition-colors duration-150 hover:text-accent-forte"
+              >
+                Ver todo o histórico
+              </Link>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-gray-500">Nada registrado ainda. As entregas, devoluções e mudanças de local aparecem aqui.</p>
+        )}
+      </Bloco>
 
       <Bloco titulo="Registro">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3">

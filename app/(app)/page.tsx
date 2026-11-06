@@ -7,15 +7,17 @@ import { CabecalhoCarregando, CabecalhoDaPagina } from "@/components/cabecalho-d
 import { Ponto } from "@/components/status";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { cx } from "@/lib/classes";
+import { ListaDoHistorico } from "@/components/historico/lista";
 import { obterBanco } from "@/lib/db";
+import { atividadeRecente } from "@/lib/historico/servico";
 import { nomeDoMaterial } from "@/lib/materiais/nomes";
 import { materiaisZerados, resumoDosMateriais } from "@/lib/materiais/servico";
 import { textoPorCategoria } from "@/lib/itens/consultas";
 import { avisoDeGarantia } from "@/lib/itens/garantia";
 import { painelDoInicio } from "@/lib/itens/inicio";
-import { nomeCompletoDoItem, tituloDoItem } from "@/lib/itens/nomes";
+import { tituloDoItem } from "@/lib/itens/nomes";
 import type { Status } from "@/lib/itens/valores";
-import { dataPorExtenso, formatarData, hojeEmSaoPaulo, saudacao, tempoDesde } from "@/lib/texto/data";
+import { dataPorExtenso, formatarData, hojeEmSaoPaulo, saudacao } from "@/lib/texto/data";
 import { juntar, plural } from "@/lib/texto/plural";
 
 export const metadata: Metadata = { title: "Início" };
@@ -98,7 +100,12 @@ async function Painel() {
   const agora = new Date();
   const hoje = hojeEmSaoPaulo(agora);
   const db = obterBanco();
-  const [p, materiais, zerados] = await Promise.all([painelDoInicio(db, hoje), resumoDosMateriais(db), materiaisZerados(db)]);
+  const [p, materiais, zerados, atividade] = await Promise.all([
+    painelDoInicio(db, hoje),
+    resumoDosMateriais(db),
+    materiaisZerados(db),
+    atividadeRecente(db, 6),
+  ]);
 
   const manutencao = p.itensEmManutencao;
   const temAtencao = p.emManutencao > 0 || p.garantias.length > 0;
@@ -237,32 +244,22 @@ async function Painel() {
         </section>
         </div>
 
-        <section aria-labelledby="titulo-recentes" className="min-w-0 flex-[1_1_320px]">
-          <h2 id="titulo-recentes" className="px-6 pb-3 text-base font-semibold">
-            Atualizados recentemente
-          </h2>
+        <section aria-labelledby="titulo-atividade" className="min-w-0 flex-[1_1_320px]">
+          <div className="flex items-baseline justify-between gap-3 px-6 pb-3">
+            <h2 id="titulo-atividade" className="text-base font-semibold">
+              Atividade recente
+            </h2>
+            <Link href="/historico" className="text-13 font-medium text-accent hover:text-accent-forte">
+              Ver histórico
+            </Link>
+          </div>
           <div className={CARTAO}>
-            {p.recentes.length ? (
-              <ol className="flex flex-col gap-1 p-3">
-                {p.recentes.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      href={`/inventario?item=${item.codigo}`}
-                      className="flex gap-3 rounded-lg px-3 py-2 transition-colors duration-150 hover:bg-gray-50"
-                    >
-                      <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-gray-300" />
-                      <span className="min-w-0">
-                        <span className="block truncate">
-                          <span className="font-mono text-13 text-gray-900">{item.codigo}</span> {nomeCompletoDoItem(item)}
-                        </span>
-                        <span className="block text-13 text-gray-500">{tempoDesde(item.atualizadoEm, agora)}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
+            {atividade.length ? (
+              <div className="px-6 py-5">
+                <ListaDoHistorico registros={atividade} comItem />
+              </div>
             ) : (
-              <p className="px-6 py-5 text-gray-500">Nenhum item cadastrado ainda.</p>
+              <p className="px-6 py-5 text-gray-500">Nada registrado ainda. As entregas, devoluções e mudanças de local aparecem aqui.</p>
             )}
           </div>
         </section>

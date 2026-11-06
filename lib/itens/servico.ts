@@ -3,6 +3,8 @@ import { eq, sql } from "drizzle-orm";
 import { colaboradores, itens, locais, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 
+import { estadoDosItens, registrarCadastro, registrarExclusao, registrarMudancas } from "@/lib/historico/servico";
+
 import { CAMPOS_DE_COMPUTADOR, type DadosDoItem } from "./regras";
 import type { Categoria } from "./valores";
 
@@ -121,7 +123,11 @@ export async function criarItem(
     const reserva = await reservarCodigo(tx, dados.tipoId);
     if (!reserva) return { criado: false as const, erros: { tipoId: "Escolha o tipo." } };
 
-    await tx.insert(itens).values({ ...aplicarCategoria(dados, reserva.categoria), codigo: reserva.codigo });
+    const [novo] = await tx
+      .insert(itens)
+      .values({ ...aplicarCategoria(dados, reserva.categoria), codigo: reserva.codigo })
+      .returning({ id: itens.id });
+    await registrarCadastro(tx, [novo.id]);
     return { criado: true as const, codigo: reserva.codigo };
   });
 }
@@ -158,18 +164,26 @@ export async function editarItem(db: Banco, id: number, dados: DadosDoItem): Pro
       categoria = tipo.categoria;
     }
 
+    const antes = await estadoDosItens(tx, [id]);
     await tx
       .update(itens)
       .set({ ...aplicarCategoria(dados, categoria), codigo, atualizadoEm: sql`now()` })
       .where(eq(itens.id, id));
+    // Mudou a pessoa ou o local? Vai para o histórico.
+    await registrarMudancas(tx, antes);
     return { salvo: true, codigoAntigo: atual.codigo, codigo };
   });
 }
 
-/** Apaga o item de vez. O código dele nunca volta a ser usado. */
+/** Apaga o item de vez. O código dele nunca volta a ser usado, e o histórico fica (com um último registro "Excluído"). */
 export async function excluirItem(db: Banco, id: number): Promise<string | null> {
-  const [apagado] = await db.delete(itens).where(eq(itens.id, id)).returning({ codigo: itens.codigo });
-  return apagado?.codigo ?? null;
+  return db.transaction(async (tx) => {
+    const estado = (await estadoDosItens(tx, [id])).get(id);
+    if (!estado) return null;
+    await registrarExclusao(tx, estado);
+    const [apagado] = await tx.delete(itens).where(eq(itens.id, id)).returning({ codigo: itens.codigo });
+    return apagado?.codigo ?? null;
+  });
 }
 
 /** O item pelo código do endereço (/inventario/DSK0001). Aceita minúsculas. */
