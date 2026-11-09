@@ -7,6 +7,7 @@ import { classesDoBotao } from "@/components/botao";
 import { CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
 import { IconeDoTipo } from "@/components/icone-do-tipo";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { listarCaracteristicas } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { listarTiposComContagem, type TipoComContagem } from "@/lib/itens/tipos";
 import { CATEGORIAS, NOME_DA_CATEGORIA } from "@/lib/itens/valores";
@@ -20,7 +21,7 @@ export default function PaginaTipos() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <CabecalhoDaPagina
           titulo="Tipos de item"
-          subtitulo="O que cada item é. O prefixo forma o código: MON gera MON0001, MON0002..."
+          subtitulo="O que cada item é. O prefixo forma o código: MON gera MON0001, MON0002... Em cada tipo, ajuste as características."
         />
         <Link href="/configuracoes/tipos/novo" className={classesDoBotao("secundario")}>
           <Plus aria-hidden="true" />
@@ -36,15 +37,18 @@ export default function PaginaTipos() {
   );
 }
 
-function contagem(tipo: TipoComContagem): string {
+function contagem(tipo: TipoComContagem, caracteristicas: string[]): string {
   const ativos = tipo.itensAtivos === 0 ? "Nenhum item" : plural(tipo.itensAtivos, "item", "itens");
-  if (!tipo.itensDescartados) return ativos;
-  return `${ativos} · ${plural(tipo.itensDescartados, "descartado", "descartados")}`;
+  return [ativos, tipo.itensDescartados ? plural(tipo.itensDescartados, "descartado", "descartados") : null, caracteristicas.join(", ") || null]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 async function Lista() {
   await exigirSessao();
-  const tipos = await listarTiposComContagem(obterBanco());
+  const db = obterBanco();
+  const [tipos, caracteristicas] = await Promise.all([listarTiposComContagem(db), listarCaracteristicas(db)]);
+  const nomes = (tipoId: number) => caracteristicas.filter((c) => c.tipoId === tipoId).map((c) => c.nome);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white">
@@ -66,7 +70,7 @@ async function Lista() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium">{tipo.nome}</span>
-                      <span className="block text-13 text-gray-500">{contagem(tipo)}</span>
+                      <span className="block text-13 text-gray-500">{contagem(tipo, nomes(tipo.id))}</span>
                     </span>
                     <span className="font-mono text-13 text-gray-500">{tipo.prefixo}</span>
                     <ChevronRight

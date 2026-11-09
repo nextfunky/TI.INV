@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { ESTADO_INICIAL } from "@/lib/formulario";
 import { CONDICOES, NOME_DA_CONDICAO } from "@/lib/itens/valores";
 import { cadastrarMaterial, salvarMaterial } from "@/lib/materiais/acoes";
 import { GRUPOS, NOME_DO_GRUPO } from "@/lib/materiais/valores";
 
+import type { Caracteristica } from "@/lib/caracteristicas/valores";
+
 import { classesDoBotao } from "../botao";
+import { CamposDasCaracteristicas } from "../caracteristicas/campos";
 import { BotaoEnviar } from "../botao-enviar";
 import { CampoSelecao, CampoTexto, CampoTextoLongo, FaixaDeErro } from "../campo";
 import { useFocarErro } from "../use-focar-erro";
@@ -18,12 +21,14 @@ export function FormularioDoMaterial({
   material,
   locais,
   compatibilidades = [],
+  caracteristicasPorGrupo,
 }: {
   material?: {
     id: number;
     nome: string;
     marcaModelo: string | null;
     compativelCom: string | null;
+    caracteristicas: Record<string, string>;
     grupo: string;
     localId: number | null;
     condicao: string | null;
@@ -32,6 +37,8 @@ export function FormularioDoMaterial({
   locais: Array<{ id: number; caminho: string }>;
   /** Os valores já usados em "Compatível com", sugeridos ao digitar. */
   compatibilidades?: string[];
+  /** As características de cada grupo: os campos mudam ao trocar o grupo. */
+  caracteristicasPorGrupo: Partial<Record<string, Caracteristica[]>>;
 }) {
   const acao = material ? salvarMaterial.bind(null, material.id) : cadastrarMaterial;
   const [estado, enviar] = useActionState(acao, ESTADO_INICIAL);
@@ -46,8 +53,11 @@ export function FormularioDoMaterial({
     condicao: material?.condicao ?? "",
     observacoes: material?.observacoes ?? "",
     quantidade: "",
+    ...material?.caracteristicas,
     ...estado.valores,
   };
+  const [grupo, setGrupo] = useState(valores.grupo);
+  const caracteristicas = caracteristicasPorGrupo[grupo] ?? [];
 
   return (
     <form ref={formulario} action={enviar} noValidate className="max-w-2xl">
@@ -79,7 +89,7 @@ export function FormularioDoMaterial({
           defaultValue={valores.marcaModelo}
           erro={erros.marcaModelo}
         />
-        <CampoSelecao id="grupo" name="grupo" rotulo="Grupo" defaultValue={valores.grupo} erro={erros.grupo}>
+        <CampoSelecao id="grupo" name="grupo" rotulo="Grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} erro={erros.grupo}>
           <option value="" disabled>
             Escolha o grupo
           </option>
@@ -144,6 +154,13 @@ export function FormularioDoMaterial({
             dica="Quantos existem hoje. Entra como a primeira entrada."
           />
         )}
+        {caracteristicas.length ? (
+          <fieldset className="grid gap-4 border-t border-gray-100 pt-4 sm:col-span-2 sm:grid-cols-2">
+            <legend className="mb-1 text-13 font-medium text-gray-700 sm:col-span-2">Características</legend>
+            {/* Ao trocar o grupo, os campos são outros: a chave recomeça os campos do zero. */}
+            <CamposDasCaracteristicas key={grupo} caracteristicas={caracteristicas} valores={valores} erros={erros} />
+          </fieldset>
+        ) : null}
         <CampoTextoLongo
           id="observacoes"
           name="observacoes"

@@ -4,9 +4,11 @@ import { ChevronDown, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { SEM_VALOR, type FiltroDeCaracteristicaNaTela } from "@/lib/caracteristicas/filtros";
 import { cx } from "@/lib/classes";
 import { enderecoDoInventario, type FiltrosDoInventario } from "@/lib/itens/filtros";
 import { CATEGORIAS, CONDICOES, NOME_DA_CATEGORIA, NOME_DA_CONDICAO, type Categoria, type Condicao } from "@/lib/itens/valores";
+import { comOsParametros } from "@/lib/resumo/tabela";
 
 export type TipoNaLista = { id: number; nome: string; categoria: Categoria };
 
@@ -44,25 +46,64 @@ export function Selecao({
   );
 }
 
+/** Um filtro por característica: as opções, mais "Não informado". Um valor que veio do endereço e não está nas opções continua visível. */
+export function SelecaoDeCaracteristica({
+  caracteristica: c,
+  valor,
+  aoMudar,
+}: {
+  caracteristica: FiltroDeCaracteristicaNaTela;
+  valor: string;
+  aoMudar: (valor: string) => void;
+}) {
+  return (
+    <Selecao
+      id={`filtro-caracteristica-${c.id}`}
+      name={`c${c.id}`}
+      rotulo={c.nome}
+      ativa={Boolean(valor)}
+      value={valor}
+      onChange={(e) => aoMudar(e.target.value)}
+    >
+      <option value="">{c.nome}: todos</option>
+      {c.opcoes.map((o) => (
+        <option key={o.valor} value={o.valor}>
+          {o.rotulo}
+        </option>
+      ))}
+      {valor && valor !== SEM_VALOR && !c.opcoes.some((o) => o.valor === valor) ? <option value={valor}>{valor}</option> : null}
+      <option value={SEM_VALOR}>Não informado</option>
+    </Selecao>
+  );
+}
+
 /**
- * Busca na lista e os filtros de tipo e condição. Escolher na lista já aplica
- * o filtro; a busca vale ao apertar Enter. Sem JavaScript, o formulário
- * também funciona (com o botão "Filtrar").
+ * Busca na lista e os filtros de categoria, tipo, características do tipo,
+ * condição e local. Escolher na lista já aplica o filtro; a busca vale ao
+ * apertar Enter. Sem JavaScript, o formulário também funciona (com o botão
+ * "Filtrar").
  */
 export function BuscaESelecoes({
   filtros,
   tipos,
   locais,
+  caracteristicas,
+  manter,
 }: {
   filtros: FiltrosDoInventario;
   tipos: TipoNaLista[];
   locais: Array<{ id: number; caminho: string }>;
+  caracteristicas: FiltroDeCaracteristicaNaTela[];
+  manter: Record<string, string>;
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState(filtros.busca ?? "");
 
   function aplicar(mudanca: Partial<FiltrosDoInventario>) {
-    router.push(enderecoDoInventario({ ...filtros, busca: busca.trim() || undefined, pagina: 1, ...mudanca }));
+    const endereco = enderecoDoInventario({ ...filtros, busca: busca.trim() || undefined, pagina: 1, ...mudanca });
+    // Trocar de tipo muda as características: elas saem, e o cruzamento do Resumo volta ao padrão.
+    const trocouDeTipo = "tipo" in mudanca && mudanca.tipo !== filtros.tipo;
+    router.push(comOsParametros(endereco, trocouDeTipo ? (manter.visao ? { visao: manter.visao } : {}) : manter));
   }
 
   function aoEnviar(e: FormEvent<HTMLFormElement>) {
@@ -75,6 +116,9 @@ export function BuscaESelecoes({
       {/* Para funcionar sem JavaScript, os outros filtros vão junto. */}
       {filtros.status ? <input type="hidden" name="status" value={filtros.status} /> : null}
       {filtros.pessoa ? <input type="hidden" name="pessoa" value={filtros.pessoa} /> : null}
+      {Object.entries(manter).map(([chave, valor]) => (
+        <input key={chave} type="hidden" name={chave} value={valor} />
+      ))}
 
       <div className="relative w-full sm:w-auto">
         <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-500" />
@@ -99,7 +143,7 @@ export function BuscaESelecoes({
             aria-label="Limpar a busca"
             onClick={() => {
               setBusca("");
-              router.push(enderecoDoInventario({ ...filtros, busca: undefined, pagina: 1 }));
+              router.push(comOsParametros(enderecoDoInventario({ ...filtros, busca: undefined, pagina: 1 }), manter));
             }}
             className="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
           >
@@ -118,7 +162,7 @@ export function BuscaESelecoes({
           const categoria = (e.target.value || undefined) as Categoria | undefined;
           // O tipo escolhido sai se não for da categoria nova.
           const tipoContinua = !categoria || tipos.find((t) => t.id === filtros.tipo)?.categoria === categoria;
-          aplicar({ categoria, tipo: tipoContinua ? filtros.tipo : undefined });
+          aplicar({ categoria, tipo: tipoContinua ? filtros.tipo : undefined, caracteristicas: tipoContinua ? filtros.caracteristicas : {} });
         }}
       >
         <option value="">Todas as categorias</option>
@@ -135,7 +179,7 @@ export function BuscaESelecoes({
         rotulo="Tipo"
         ativa={Boolean(filtros.tipo)}
         value={filtros.tipo ?? ""}
-        onChange={(e) => aplicar({ tipo: e.target.value ? Number(e.target.value) : undefined })}
+        onChange={(e) => aplicar({ tipo: e.target.value ? Number(e.target.value) : undefined, caracteristicas: {} })}
       >
         <option value="">Todos os tipos</option>
         {CATEGORIAS.filter((c) => !filtros.categoria || c === filtros.categoria).map((c) => {
@@ -153,13 +197,22 @@ export function BuscaESelecoes({
         })}
       </Selecao>
 
+      {caracteristicas.map((c) => (
+        <SelecaoDeCaracteristica
+          key={c.id}
+          caracteristica={c}
+          valor={filtros.caracteristicas?.[c.id] ?? ""}
+          aoMudar={(valor) => aplicar({ caracteristicas: { ...filtros.caracteristicas, [c.id]: valor } })}
+        />
+      ))}
+
       <Selecao
         id="filtro-condicao"
         name="condicao"
         rotulo="Condição"
         ativa={Boolean(filtros.condicao)}
         value={filtros.condicao ?? ""}
-        onChange={(e) => aplicar({ condicao: (e.target.value || undefined) as Condicao | undefined })}
+        onChange={(e) => aplicar({ condicao: (e.target.value || undefined) as Condicao | "nenhuma" | undefined })}
       >
         <option value="">Qualquer condição</option>
         {CONDICOES.map((c) => (
@@ -167,6 +220,7 @@ export function BuscaESelecoes({
             {NOME_DA_CONDICAO[c]}
           </option>
         ))}
+        <option value="nenhuma">Não informada</option>
       </Selecao>
 
       <Selecao

@@ -84,7 +84,10 @@ export function ImportarPlanilha() {
           Como funciona
         </h2>
         <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-gray-600">
-          <li>Baixe o modelo e preencha as abas Itens (uma linha por equipamento) e Materiais.</li>
+          <li>
+            Baixe o modelo e preencha as abas Itens (uma linha por equipamento) e Materiais. Para as características (Cor,
+            Comprimento…), acrescente uma coluna com o nome delas.
+          </li>
           <li>Escolha o arquivo abaixo. O sistema lê a planilha e mostra o que vai entrar, sem gravar nada.</li>
           <li>Se houver problemas, corrija na planilha e escolha o arquivo de novo.</li>
           <li>Com tudo certo, clique em Importar. Entra tudo de uma vez, ou nada.</li>

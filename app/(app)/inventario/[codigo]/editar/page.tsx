@@ -6,6 +6,7 @@ import { CabecalhoCarregando, CabecalhoDaPagina } from "@/components/cabecalho-d
 import { FormularioDoItem } from "@/components/inventario/formulario-do-item";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { listarCaracteristicas, porTipo } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { tituloDoItem } from "@/lib/itens/nomes";
 import { obterItemPorCodigo } from "@/lib/itens/servico";
@@ -43,7 +44,12 @@ async function Edicao({ params }: Pick<Props, "params">) {
   if (!item) notFound();
   if (item.codigo !== codigo) redirect(`/inventario/${item.codigo}/editar`);
 
-  const [tipos, pessoas, locais] = await Promise.all([listarTipos(db), listarParaEscolha(db), listarLocais(db)]);
+  const [tipos, pessoas, locais, caracteristicas] = await Promise.all([
+    listarTipos(db),
+    listarParaEscolha(db),
+    listarLocais(db),
+    listarCaracteristicas(db),
+  ]);
   const titulo = tituloDoItem(item);
   const iniciais: Record<string, string> = {
     tipoId: String(item.tipoId),
@@ -62,6 +68,8 @@ async function Edicao({ params }: Pick<Props, "params">) {
     dataCompra: item.dataCompra ?? "",
     garantiaAte: item.garantiaAte ?? "",
     observacoes: item.observacoes ?? "",
+    // As características vão pelo id ({ "12": "Magenta" }).
+    ...item.caracteristicas,
   };
 
   return (
@@ -86,6 +94,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
           tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
           pessoas={pessoas}
           locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+          caracteristicasPorTipo={porTipo(caracteristicas)}
           iniciais={iniciais}
           item={{ id: item.id, codigo: item.codigo, titulo }}
         />

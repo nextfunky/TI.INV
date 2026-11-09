@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -13,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { CATEGORIAS, CONDICOES, STATUS } from "@/lib/itens/valores";
+import { TIPOS_DE_CARACTERISTICA, type ValoresDasCaracteristicas } from "@/lib/caracteristicas/valores";
 import { EVENTOS } from "@/lib/historico/valores";
 import { GRUPOS, TIPOS_DE_MOVIMENTO } from "@/lib/materiais/valores";
 
@@ -154,6 +156,8 @@ export const itens = pgTable(
     dataCompra: date("data_compra", { mode: "string" }),
     garantiaAte: date("garantia_ate", { mode: "string" }),
     observacoes: text("observacoes"),
+    /** As características do tipo (cor, conexão…): { idDaCaracteristica: valor }. */
+    caracteristicas: jsonb("caracteristicas").$type<ValoresDasCaracteristicas>().notNull().default({}),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
@@ -188,6 +192,8 @@ export const materiais = pgTable(
     localId: integer("local_id").references(() => locais.id, { onDelete: "restrict" }),
     condicao: condicaoDoItem("condicao"),
     observacoes: text("observacoes"),
+    /** As características do grupo (cor, categoria, comprimento…): { idDaCaracteristica: valor }. */
+    caracteristicas: jsonb("caracteristicas").$type<ValoresDasCaracteristicas>().notNull().default({}),
     quantidade: integer("quantidade").notNull().default(0),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
@@ -280,5 +286,36 @@ export const historicoDeItens = pgTable(
     index("historico_criado_em_idx").on(t.criadoEm),
     index("historico_de_pessoa_idx").on(t.dePessoaId),
     index("historico_para_pessoa_idx").on(t.paraPessoaId),
+  ],
+);
+
+export const tipoDeCaracteristica = pgEnum("tipo_de_caracteristica", TIPOS_DE_CARACTERISTICA);
+
+/**
+ * As características de cada tipo de item ou de cada grupo de material: os
+ * campos próprios (Cor, Comprimento, Receptor USB…). Cada uma pertence a um
+ * tipo OU a um grupo. Os valores ficam no item/material, pela chave `id`.
+ */
+export const definicoesDeCaracteristicas = pgTable(
+  "caracteristicas",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    tipoId: integer("tipo_id").references(() => tiposDeItem.id, { onDelete: "cascade" }),
+    grupo: grupoDoMaterial("grupo"),
+    nome: text("nome").notNull(),
+    tipo: tipoDeCaracteristica("tipo").notNull().default("lista"),
+    /** As opções da lista, na ordem em que aparecem. */
+    opcoes: text("opcoes").array().notNull().default(sql`'{}'::text[]`),
+    /** A unidade dos números ("m", "W", "GB"…). */
+    unidade: text("unidade"),
+    ordem: integer("ordem").notNull().default(0),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    check("caracteristicas_de_um_tipo_ou_grupo", sql`(${t.tipoId} is null) <> (${t.grupo} is null)`),
+    // O mesmo nome não se repete no mesmo tipo, nem no mesmo grupo.
+    uniqueIndex("caracteristicas_nome_unico_no_tipo").on(t.tipoId, sql`lower(${t.nome})`).where(sql`${t.tipoId} is not null`),
+    uniqueIndex("caracteristicas_nome_unico_no_grupo").on(t.grupo, sql`lower(${t.nome})`).where(sql`${t.grupo} is not null`),
+    index("caracteristicas_tipo_id_idx").on(t.tipoId),
   ],
 );

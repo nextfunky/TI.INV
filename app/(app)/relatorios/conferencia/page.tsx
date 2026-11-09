@@ -6,6 +6,8 @@ import { Suspense, type ReactNode } from "react";
 import { classesDoBotao } from "@/components/botao";
 import { BotaoImprimir } from "@/components/relatorios/botao-imprimir";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { etiquetasDasCaracteristicas } from "@/lib/caracteristicas/regras";
+import { listarCaracteristicas, porGrupo, porTipo } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { NOME_DA_CONDICAO, NOME_DO_STATUS } from "@/lib/itens/valores";
 import { NOME_DO_GRUPO } from "@/lib/materiais/valores";
@@ -49,7 +51,10 @@ function Grupo({ titulo, total, children }: { titulo: string; total: string; chi
 async function Conferencia({ searchParams }: Pick<Props, "searchParams">) {
   await exigirSessao();
   const pedido = lerPedidoDeConferencia(await searchParams);
-  const dados = await dadosDaConferencia(obterBanco(), pedido);
+  const db = obterBanco();
+  const [dados, caracteristicas] = await Promise.all([dadosDaConferencia(db, pedido), listarCaracteristicas(db)]);
+  const caracteristicasPorTipo = porTipo(caracteristicas);
+  const caracteristicasPorGrupo = porGrupo(caracteristicas);
   const geradoEm = formatarDataHora(new Date());
 
   return (
@@ -113,6 +118,11 @@ async function Conferencia({ searchParams }: Pick<Props, "searchParams">) {
                             {item.tipo.categoria === "computador" && item.hostname ? (
                               <span className="block font-mono text-11 text-gray-600">{item.hostname}</span>
                             ) : null}
+                            {etiquetasDasCaracteristicas(caracteristicasPorTipo[item.tipoId] ?? [], item.caracteristicas).length ? (
+                              <span className="block text-11 text-gray-600">
+                                {etiquetasDasCaracteristicas(caracteristicasPorTipo[item.tipoId] ?? [], item.caracteristicas).join(" · ")}
+                              </span>
+                            ) : null}
                           </td>
                           <td className={`${CELULA} font-mono text-11`}>{item.numeroSerie ?? ""}</td>
                           <td className={CELULA}>
@@ -166,6 +176,11 @@ async function Conferencia({ searchParams }: Pick<Props, "searchParams">) {
                             {m.nome}
                             {m.marcaModelo ? <span className="text-gray-600"> · {m.marcaModelo}</span> : null}
                             {m.compativelCom ? <span className="block text-11 text-gray-600">Compatível com {m.compativelCom}</span> : null}
+                            {etiquetasDasCaracteristicas(caracteristicasPorGrupo[m.grupo] ?? [], m.caracteristicas).length ? (
+                              <span className="block text-11 text-gray-600">
+                                {etiquetasDasCaracteristicas(caracteristicasPorGrupo[m.grupo] ?? [], m.caracteristicas).join(" · ")}
+                              </span>
+                            ) : null}
                           </td>
                           <td className={CELULA}>{m.caminho ?? <span className="text-gray-600">Sem local definido</span>}</td>
                           <td className={CELULA}>{m.condicao ? NOME_DA_CONDICAO[m.condicao] : <span className="text-gray-500">Não informada</span>}</td>

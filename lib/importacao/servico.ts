@@ -1,5 +1,8 @@
 import { eq, isNotNull, sql } from "drizzle-orm";
 
+import { conferirValores } from "@/lib/caracteristicas/regras";
+import { listarCaracteristicas, simples, type CaracteristicaCompleta } from "@/lib/caracteristicas/servico";
+import type { ValoresDasCaracteristicas } from "@/lib/caracteristicas/valores";
 import { chaveDoNome, criarColaborador } from "@/lib/colaboradores/servico";
 import { colaboradores, importacoes, itens, locais, materiais, movimentosDeMaterial, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
@@ -9,7 +12,7 @@ import { registrarCadastro } from "@/lib/historico/servico";
 import { criarLocal } from "@/lib/locais/servico";
 import { formatarDataHora } from "@/lib/texto/data";
 
-import { caminhoDoLocal, comparavel, partesDoLocal, type ErroDaPlanilha, type PlanilhaLida } from "./planilha";
+import { caminhoDoLocal, comparavel, partesDoLocal, type ColunasExtras, type ErroDaPlanilha, type PlanilhaLida } from "./planilha";
 
 /**
  * A importação com o banco: confere tipos, locais, pessoas e números de série,
@@ -28,6 +31,42 @@ export type ResumoDaImportacao = {
 export type Previa = { erros: ErroDaPlanilha[]; avisos: ErroDaPlanilha[]; resumo: ResumoDaImportacao };
 
 type TipoDaImportacao = { id: number; nome: string; categoria: Categoria };
+
+/**
+ * As colunas a mais de uma linha viram as características do tipo (ou do
+ * grupo), pelo nome da coluna ("Cor", "Comprimento"). Devolve os valores já
+ * conferidos, os erros e as colunas que não são deste tipo.
+ */
+function caracteristicasDaLinha(
+  colunas: ColunasExtras,
+  doDono: CaracteristicaCompleta[],
+): { valores: ValoresDasCaracteristicas; erros: string[]; ignoradas: string[] } {
+  const bruto: Record<string, string> = {};
+  const ignoradas: string[] = [];
+  for (const [coluna, valor] of Object.entries(colunas)) {
+    const c = doDono.find((d) => comparavel(d.nome) === comparavel(coluna));
+    if (c) bruto[c.id] = valor;
+    else ignoradas.push(coluna);
+  }
+  const { valores, erros } = conferirValores(doDono.map(simples), bruto);
+  return {
+    valores,
+    erros: Object.entries(erros).map(([campo, mensagem]) => `${doDono.find((d) => `car_${d.id}` === campo)?.nome ?? "Característica"}: ${mensagem}`),
+    ignoradas,
+  };
+}
+
+/** Um aviso por coluna a mais que ficou de fora (em todas as linhas ou só em algumas). */
+function avisosDasColunas(aba: string, colunas: string[], ignoradas: Map<string, number>, usadas: Set<string>, porQue: string): ErroDaPlanilha[] {
+  return colunas
+    .filter((coluna) => ignoradas.has(coluna))
+    .map((coluna) => ({
+      aba,
+      mensagem: usadas.has(coluna)
+        ? `Coluna “${coluna}”: ignorada em ${ignoradas.get(coluna) === 1 ? "1 linha" : `${ignoradas.get(coluna)} linhas`} (${porQue}).`
+        : `A coluna “${coluna}” não é do modelo nem uma característica e foi ignorada.`,
+    }));
+}
 
 /** Confere a planilha lida contra o que já está no sistema. Não grava nada. */
 async function conferir(db: Banco, lida: PlanilhaLida) {
@@ -51,6 +90,7 @@ async function conferir(db: Banco, lida: PlanilhaLida) {
   const chaveDoMaterial = (nome: string, marcaModelo: string | null, caminho: string | null) =>
     [nome, marcaModelo ?? "", caminho ?? ""].map(comparavel).join("|");
   const materiaisJaCadastrados = new Set(materiaisExistentes.map((m) => chaveDoMaterial(m.nome, m.marcaModelo, m.caminho)));
+  const caracteristicas = await listarCaracteristicas(db);
 
   // Locais e pessoas que ainda não existem (com a grafia da primeira vez em que aparecem).
   const locaisNovos = new Map<string, string[]>();
@@ -73,6 +113,20 @@ async function conferir(db: Banco, lida: PlanilhaLida) {
 
   const seriesNaPlanilha = new Map<string, number>();
   const porTipo = new Map<string, number>();
+  // As características de cada linha (na ordem da planilha), e as colunas que ficaram de fora.
+  const caracteristicasDosItens: ValoresDasCaracteristicas[] = [];
+  const caracteristicasDosMateriais: ValoresDasCaracteristicas[] = [];
+  const ignoradasNosItens = new Map<string, number>();
+  const usadasNosItens = new Set<string>();
+  const ignoradasNosMateriais = new Map<string, number>();
+  const usadasNosMateriais = new Set<string>();
+  const anotar = (colunas: ColunasExtras, ignoradas: string[], mapa: Map<string, number>, usadas: Set<string>) => {
+    for (const coluna of Object.keys(colunas)) {
+      if (ignoradas.includes(coluna)) mapa.set(coluna, (mapa.get(coluna) ?? 0) + 1);
+      else usadas.add(coluna);
+    }
+  };
+
   for (const item of lida.itens) {
     const tipo = tipoPorNome.get(comparavel(item.tipo));
     if (!tipo) {
@@ -81,8 +135,13 @@ async function conferir(db: Banco, lida: PlanilhaLida) {
         linha: item.linha,
         mensagem: `Tipo “${item.tipo}” não existe. Use um dos tipos da aba Instruções, ou cadastre o tipo antes em Tipos de item.`,
       });
+      caracteristicasDosItens.push({});
     } else {
       porTipo.set(tipo.nome, (porTipo.get(tipo.nome) ?? 0) + 1);
+      const r = caracteristicasDaLinha(item.caracteristicas, caracteristicas.filter((c) => c.tipoId === tipo.id));
+      for (const mensagem of r.erros) erros.push({ aba: "Itens", linha: item.linha, mensagem });
+      anotar(item.caracteristicas, r.ignoradas, ignoradasNosItens, usadasNosItens);
+      caracteristicasDosItens.push(r.valores);
     }
     if (item.dados.numeroSerie) {
       const k = comparavel(item.dados.numeroSerie);
@@ -104,6 +163,10 @@ async function conferir(db: Banco, lida: PlanilhaLida) {
   let unidades = 0;
   for (const material of lida.materiais) {
     unidades += material.dados.quantidade;
+    const r = caracteristicasDaLinha(material.caracteristicas, caracteristicas.filter((c) => c.grupo === material.dados.grupo));
+    for (const mensagem of r.erros) erros.push({ aba: "Materiais", linha: material.linha, mensagem });
+    anotar(material.caracteristicas, r.ignoradas, ignoradasNosMateriais, usadasNosMateriais);
+    caracteristicasDosMateriais.push(r.valores);
     const k = anotarLocal(material.local);
     const caminho = k ? caminhoDoLocal(partesDoLocal(material.local)!) : null;
     if (materiaisJaCadastrados.has(chaveDoMaterial(material.dados.nome, material.dados.marcaModelo, caminho))) {
@@ -114,6 +177,11 @@ async function conferir(db: Banco, lida: PlanilhaLida) {
       });
     }
   }
+
+  avisos.push(
+    ...avisosDasColunas("Itens", lida.colunasExtras.itens, ignoradasNosItens, usadasNosItens, "o tipo delas não tem essa característica"),
+    ...avisosDasColunas("Materiais", lida.colunasExtras.materiais, ignoradasNosMateriais, usadasNosMateriais, "o grupo delas não tem essa característica"),
+  );
 
   const ordem = (a: { linha?: number; aba: string }, b: { linha?: number; aba: string }) =>
     a.aba.localeCompare(b.aba) || (a.linha ?? 0) - (b.linha ?? 0);
@@ -132,6 +200,8 @@ async function conferir(db: Banco, lida: PlanilhaLida) {
     pessoaPorChave,
     locaisNovos,
     pessoasNovas,
+    caracteristicasDosItens,
+    caracteristicasDosMateriais,
   };
 }
 
@@ -200,7 +270,7 @@ export async function importarPlanilha(
           .returning({ prefixo: tiposDeItem.prefixo, ultimo: tiposDeItem.ultimoNumero });
         proximo.set(tipoId, { prefixo: tipo.prefixo, numero: tipo.ultimo - quantos + 1 });
       }
-      const novosItens = lida.itens.map((item) => {
+      const novosItens = lida.itens.map((item, i) => {
         const tipo = c.tipoPorNome.get(comparavel(item.tipo))!;
         const vez = proximo.get(tipo.id)!;
         const codigo = montarCodigo(vez.prefixo, vez.numero++);
@@ -208,6 +278,7 @@ export async function importarPlanilha(
         return {
           ...aplicarCategoria({ ...item.dados, tipoId: tipo.id, usuarioId, localId: idDoLocal(item.local) }, tipo.categoria),
           codigo,
+          caracteristicas: c.caracteristicasDosItens[i],
         };
       });
       const idsNovos: number[] = [];
@@ -221,7 +292,7 @@ export async function importarPlanilha(
         const parte = lida.materiais.slice(i, i + 500);
         const criados = await tx
           .insert(materiais)
-          .values(parte.map((m) => ({ ...m.dados, localId: idDoLocal(m.local) })))
+          .values(parte.map((m, j) => ({ ...m.dados, localId: idDoLocal(m.local), caracteristicas: c.caracteristicasDosMateriais[i + j] })))
           .returning({ id: materiais.id, quantidade: materiais.quantidade });
         const entradas = criados
           .filter((m) => m.quantidade > 0)

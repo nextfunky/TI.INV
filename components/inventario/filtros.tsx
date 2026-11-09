@@ -1,30 +1,39 @@
 import { X } from "lucide-react";
 import Link from "next/link";
 
+import type { FiltroDeCaracteristicaNaTela } from "@/lib/caracteristicas/filtros";
 import { cx } from "@/lib/classes";
 import { enderecoDoInventario, type FiltrosDoInventario } from "@/lib/itens/filtros";
 import { NOME_DO_STATUS, STATUS } from "@/lib/itens/valores";
+import { comOsParametros } from "@/lib/resumo/tabela";
 
 import { Ponto } from "../status";
 import { BuscaESelecoes, type TipoNaLista } from "./busca-e-selecoes";
 
 /**
  * A barra de filtros do Inventário. Os filtros ficam no endereço, então dá
- * para voltar, recarregar e guardar o link. Mudar um filtro volta para a página 1.
+ * para voltar, recarregar e guardar o link. Mudar um filtro volta para a
+ * página 1 (e, no Resumo, continua no Resumo).
  */
 export function FiltrosDoInventario({
   filtros,
   tipos,
   locais,
   pessoa,
+  caracteristicas,
+  manter,
 }: {
   filtros: FiltrosDoInventario;
   tipos: TipoNaLista[];
   locais: Array<{ id: number; caminho: string }>;
   /** Nome da pessoa do filtro "Com João Lima ×", se houver. */
   pessoa?: string;
+  /** Os filtros por característica do tipo escolhido (vazio sem tipo). */
+  caracteristicas: FiltroDeCaracteristicaNaTela[];
+  /** Outros parâmetros que continuam no endereço (a visão Resumo e o cruzamento escolhido). */
+  manter: Record<string, string>;
 }) {
-  const com = (mudanca: Partial<FiltrosDoInventario>) => enderecoDoInventario({ ...filtros, pagina: 1, ...mudanca });
+  const com = (mudanca: Partial<FiltrosDoInventario>) => comOsParametros(enderecoDoInventario({ ...filtros, pagina: 1, ...mudanca }), manter);
 
   return (
     <div className="flex flex-col gap-3">
@@ -54,7 +63,7 @@ export function FiltrosDoInventario({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <BuscaESelecoes filtros={filtros} tipos={tipos} locais={locais} />
+        <BuscaESelecoes filtros={filtros} tipos={tipos} locais={locais} caracteristicas={caracteristicas} manter={manter} />
         {pessoa && filtros.pessoa ? (
           <Link
             href={com({ pessoa: undefined })}

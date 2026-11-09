@@ -54,21 +54,35 @@ export type AbaLida = { nome: string; linhas: Celula[][] };
 
 export type ErroDaPlanilha = { aba: string; linha?: number; mensagem: string };
 
+/**
+ * As colunas a mais (fora as do modelo), com o que foi escrito: { "Cor": "Magenta" }.
+ * Elas são as características do tipo ou do grupo, conferidas depois, com o banco.
+ */
+export type ColunasExtras = Record<string, string>;
+
 export type LinhaDeItem = {
   linha: number;
   tipo: string;
   local: string;
   usuario: string;
   dados: Omit<DadosDoItem, "tipoId" | "usuarioId" | "localId">;
+  caracteristicas: ColunasExtras;
 };
 
 export type LinhaDeMaterial = {
   linha: number;
   local: string;
   dados: Omit<DadosDoMaterial, "localId"> & { quantidade: number };
+  caracteristicas: ColunasExtras;
 };
 
-export type PlanilhaLida = { itens: LinhaDeItem[]; materiais: LinhaDeMaterial[]; erros: ErroDaPlanilha[] };
+export type PlanilhaLida = {
+  itens: LinhaDeItem[];
+  materiais: LinhaDeMaterial[];
+  erros: ErroDaPlanilha[];
+  /** Os nomes das colunas a mais de cada aba (para avisar das que não servem para nada). */
+  colunasExtras: { itens: string[]; materiais: string[] };
+};
 
 /** Sem acentos, sem símbolos, minúsculas: "Nº de série" → "ndeserie". */
 function chave(texto: string): string {
@@ -176,14 +190,23 @@ const ROTULO_DO_CAMPO: Record<string, string> = {
   quantidade: "Quantidade",
 };
 
-/** Separa o cabeçalho (a primeira linha com algo escrito) das linhas de dados. */
+/**
+ * Separa o cabeçalho (a primeira linha com algo escrito) das linhas de dados.
+ * As colunas que não são do modelo ficam como "extras" (as características).
+ */
 function lerAba(aba: AbaLida, colunas: readonly string[], obrigatorias: string[], erros: ErroDaPlanilha[]) {
+  const vazia = { linhas: [] as Array<{ numero: number; valor: (coluna: string) => Celula; extras: ColunasExtras }>, extras: [] as string[] };
   const inicio = aba.linhas.findIndex((l) => l.some((c) => texto(c) !== ""));
-  if (inicio < 0) return [];
+  if (inicio < 0) return vazia;
   const indice = new Map<string, number>();
+  const extras = new Map<string, number>();
   aba.linhas[inicio].forEach((c, i) => {
     const nome = nomeDaColuna(c, colunas);
     if (nome && !indice.has(nome)) indice.set(nome, i);
+    else if (!nome && texto(c)) {
+      const t = texto(c).replace(/\s+/g, " ").slice(0, 60);
+      if (![...extras.keys()].some((e) => comparavel(e) === comparavel(t))) extras.set(t, i);
+    }
   });
   const faltando = obrigatorias.filter((c) => !indice.has(c));
   if (faltando.length) {
@@ -192,15 +215,20 @@ function lerAba(aba: AbaLida, colunas: readonly string[], obrigatorias: string[]
       linha: inicio + 1,
       mensagem: `${faltando.length === 1 ? "Falta a coluna" : "Faltam as colunas"} ${lista(faltando.map((c) => `“${c}”`), "e")} no cabeçalho. Use o modelo de importação.`,
     });
-    return [];
+    return vazia;
   }
-  const linhas: Array<{ numero: number; valor: (coluna: string) => Celula }> = [];
+  const linhas: Array<{ numero: number; valor: (coluna: string) => Celula; extras: ColunasExtras }> = [];
   for (let i = inicio + 1; i < aba.linhas.length; i++) {
     const linha = aba.linhas[i];
     if (!linha.some((c) => texto(c) !== "")) continue;
-    linhas.push({ numero: i + 1, valor: (coluna) => (indice.has(coluna) ? linha[indice.get(coluna)!] : null) });
+    const valoresExtras: ColunasExtras = {};
+    for (const [nome, j] of extras) {
+      const v = texto(linha[j]);
+      if (v) valoresExtras[nome] = v;
+    }
+    linhas.push({ numero: i + 1, valor: (coluna) => (indice.has(coluna) ? linha[indice.get(coluna)!] : null), extras: valoresExtras });
   }
-  return linhas;
+  return { linhas, extras: [...extras.keys()] };
 }
 
 function mensagensDoZod(issues: Array<{ path: PropertyKey[]; message: string }>): string[] {
@@ -210,9 +238,10 @@ function mensagensDoZod(issues: Array<{ path: PropertyKey[]; message: string }>)
   });
 }
 
-function lerItens(aba: AbaLida, erros: ErroDaPlanilha[]): LinhaDeItem[] {
+function lerItens(aba: AbaLida, erros: ErroDaPlanilha[]): { linhas: LinhaDeItem[]; extras: string[] } {
   const resultado: LinhaDeItem[] = [];
-  for (const { numero, valor } of lerAba(aba, COLUNAS_DOS_ITENS, ["Tipo"], erros)) {
+  const lida = lerAba(aba, COLUNAS_DOS_ITENS, ["Tipo"], erros);
+  for (const { numero, valor, extras } of lida.linhas) {
     const problemas: string[] = [];
     const tipo = texto(valor("Tipo"));
     const usuario = texto(valor("Usuário")).replace(/\s+/g, " ");
@@ -273,14 +302,15 @@ function lerItens(aba: AbaLida, erros: ErroDaPlanilha[]): LinhaDeItem[] {
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { tipoId, usuarioId, localId, ...dados } = validacao.data;
-    resultado.push({ linha: numero, tipo, local, usuario, dados });
+    resultado.push({ linha: numero, tipo, local, usuario, dados, caracteristicas: extras });
   }
-  return resultado;
+  return { linhas: resultado, extras: lida.extras };
 }
 
-function lerMateriais(aba: AbaLida, erros: ErroDaPlanilha[]): LinhaDeMaterial[] {
+function lerMateriais(aba: AbaLida, erros: ErroDaPlanilha[]): { linhas: LinhaDeMaterial[]; extras: string[] } {
   const resultado: LinhaDeMaterial[] = [];
-  for (const { numero, valor } of lerAba(aba, COLUNAS_DOS_MATERIAIS, ["Nome", "Grupo", "Quantidade"], erros)) {
+  const lida = lerAba(aba, COLUNAS_DOS_MATERIAIS, ["Nome", "Grupo", "Quantidade"], erros);
+  for (const { numero, valor, extras } of lida.linhas) {
     const problemas: string[] = [];
     const local = texto(valor("Local"));
     const grupoDigitado = texto(valor("Grupo"));
@@ -314,9 +344,9 @@ function lerMateriais(aba: AbaLida, erros: ErroDaPlanilha[]): LinhaDeMaterial[] 
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { localId, ...dados } = validacao.data;
-    resultado.push({ linha: numero, local, dados });
+    resultado.push({ linha: numero, local, dados, caracteristicas: extras });
   }
-  return resultado;
+  return { linhas: resultado, extras: lida.extras };
 }
 
 /** Lê as abas Itens e Materiais. As outras abas (como Instruções) são ignoradas. */
@@ -325,25 +355,18 @@ export function lerPlanilha(abas: AbaLida[]): PlanilhaLida {
   const achar = (nome: string) => abas.find((a) => chave(a.nome) === chave(nome));
   const abaDosItens = achar(ABA_DOS_ITENS);
   const abaDosMateriais = achar(ABA_DOS_MATERIAIS);
+  const nada = { itens: [], materiais: [], colunasExtras: { itens: [], materiais: [] } };
   if (!abaDosItens && !abaDosMateriais) {
-    return {
-      itens: [],
-      materiais: [],
-      erros: [{ aba: "Arquivo", mensagem: "Não encontramos as abas “Itens” e “Materiais”. Use o modelo de importação." }],
-    };
+    return { ...nada, erros: [{ aba: "Arquivo", mensagem: "Não encontramos as abas “Itens” e “Materiais”. Use o modelo de importação." }] };
   }
   const total = (abaDosItens?.linhas.length ?? 0) + (abaDosMateriais?.linhas.length ?? 0);
   if (total > LINHAS_NO_MAXIMO + 2) {
-    return {
-      itens: [],
-      materiais: [],
-      erros: [{ aba: "Arquivo", mensagem: `A planilha passa de ${LINHAS_NO_MAXIMO.toLocaleString("pt-BR")} linhas. Divida em arquivos menores.` }],
-    };
+    return { ...nada, erros: [{ aba: "Arquivo", mensagem: `A planilha passa de ${LINHAS_NO_MAXIMO.toLocaleString("pt-BR")} linhas. Divida em arquivos menores.` }] };
   }
-  const itens = abaDosItens ? lerItens({ ...abaDosItens, nome: ABA_DOS_ITENS }, erros) : [];
-  const materiais = abaDosMateriais ? lerMateriais({ ...abaDosMateriais, nome: ABA_DOS_MATERIAIS }, erros) : [];
-  if (!erros.length && !itens.length && !materiais.length) {
+  const itens = abaDosItens ? lerItens({ ...abaDosItens, nome: ABA_DOS_ITENS }, erros) : { linhas: [], extras: [] };
+  const materiais = abaDosMateriais ? lerMateriais({ ...abaDosMateriais, nome: ABA_DOS_MATERIAIS }, erros) : { linhas: [], extras: [] };
+  if (!erros.length && !itens.linhas.length && !materiais.linhas.length) {
     erros.push({ aba: "Arquivo", mensagem: "A planilha não tem nenhuma linha preenchida." });
   }
-  return { itens, materiais, erros };
+  return { itens: itens.linhas, materiais: materiais.linhas, erros, colunasExtras: { itens: itens.extras, materiais: materiais.extras } };
 }

@@ -13,6 +13,7 @@ Cada equipamento, quem usa e onde está, e os materiais controlados por quantida
 | 5A | Materiais (por quantidade): cadastro, entrada, saída, ajuste de contagem, histórico e materiais entregues na página da pessoa | ✅ feita |
 | 5B | Importação de planilha (.xlsx) com prévia, modelo para baixar e 12 tipos novos | ✅ feita |
 | 6 | Histórico: registro automático de entregas, devoluções, trocas e mudanças de local, ações rápidas no painel, tela Histórico e Atividade recente | ✅ feita |
+| 6+ | Características por tipo de item e grupo de material (cor do toner, conexão do mouse…), filtros por elas e a visão Resumo (tabela cruzada para conferir o estoque) | ✅ feita |
 | 7 | Mapa: desenhar | ⬜ próxima |
 | 8 | Mapa: posicionar e ver | ⬜ |
 | 9 | Relatórios e exportação | ⬜ |

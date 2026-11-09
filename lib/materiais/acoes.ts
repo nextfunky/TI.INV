@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { exigirSessao } from "@/lib/auth/sessao";
 import { avisar } from "@/lib/aviso";
+import { comNomesDoFormulario, lerValoresDoFormulario } from "@/lib/caracteristicas/regras";
 import { obterBanco } from "@/lib/db";
 import { errosPorCampo, lerFormulario, type EstadoDoFormulario } from "@/lib/formulario";
 import { enderecoInterno } from "@/lib/itens/painel";
@@ -32,11 +33,12 @@ const NAO_ENCONTRADO = "Este material não está mais no cadastro.";
 
 export async function cadastrarMaterial(_estado: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> {
   await exigirSessao();
-  const valores = lerFormulario(dados, [...CAMPOS_DO_MATERIAL, "quantidade"]);
+  const caracteristicas = lerValoresDoFormulario(dados);
+  const valores = { ...lerFormulario(dados, [...CAMPOS_DO_MATERIAL, "quantidade"]), ...comNomesDoFormulario(caracteristicas) };
   const validacao = regrasDoNovoMaterial.safeParse(valores);
   if (!validacao.success) return { erros: errosPorCampo(validacao.error), valores };
 
-  const resultado = await criarMaterial(obterBanco(), validacao.data);
+  const resultado = await criarMaterial(obterBanco(), validacao.data, caracteristicas);
   if (!resultado.criado) return { erros: resultado.erros, valores };
 
   atualizarTelas();
@@ -46,11 +48,12 @@ export async function cadastrarMaterial(_estado: EstadoDoFormulario, dados: Form
 
 export async function salvarMaterial(id: number, _estado: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> {
   await exigirSessao();
-  const valores = lerFormulario(dados, CAMPOS_DO_MATERIAL);
+  const caracteristicas = lerValoresDoFormulario(dados);
+  const valores = { ...lerFormulario(dados, CAMPOS_DO_MATERIAL), ...comNomesDoFormulario(caracteristicas) };
   const validacao = regrasDoMaterial.safeParse(valores);
   if (!validacao.success) return { erros: errosPorCampo(validacao.error), valores };
 
-  const resultado = await editarMaterial(obterBanco(), id, validacao.data);
+  const resultado = await editarMaterial(obterBanco(), id, validacao.data, caracteristicas);
   if (!resultado.salvo && "naoEncontrado" in resultado) {
     await avisar(NAO_ENCONTRADO, "erro");
     redirect("/materiais");

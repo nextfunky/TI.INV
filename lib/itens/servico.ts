@@ -3,6 +3,8 @@ import { eq, sql } from "drizzle-orm";
 import { colaboradores, itens, locais, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
 
+import { conferirValores } from "@/lib/caracteristicas/regras";
+import { caracteristicasDoTipo, simples } from "@/lib/caracteristicas/servico";
 import { estadoDosItens, registrarCadastro, registrarExclusao, registrarMudancas } from "@/lib/historico/servico";
 
 import { CAMPOS_DE_COMPUTADOR, type DadosDoItem } from "./regras";
@@ -113,19 +115,32 @@ async function localExiste(tx: Banco, localId: number | null): Promise<boolean> 
   return Boolean(linha);
 }
 
+/**
+ * Confere as características digitadas contra as do tipo. Só ficam as do tipo
+ * (ao trocar o tipo, as do tipo antigo saem).
+ */
+async function caracteristicasConferidas(tx: Banco, tipoId: number, bruto: Record<string, string>) {
+  const campos = (await caracteristicasDoTipo(tx, tipoId)).map(simples);
+  return conferirValores(campos, bruto);
+}
+
 export async function criarItem(
   db: Banco,
   dados: DadosDoItem,
+  /** As características digitadas ({ idDaCaracteristica: valor }), conferidas aqui contra as do tipo. */
+  caracteristicasDigitadas: Record<string, string> = {},
 ): Promise<{ criado: true; codigo: string } | { criado: false; erros: Record<string, string> }> {
   return db.transaction(async (tx) => {
     if (!(await pessoaExiste(tx, dados.usuarioId))) return { criado: false as const, erros: ERRO_DE_PESSOA };
     if (!(await localExiste(tx, dados.localId))) return { criado: false as const, erros: ERRO_DE_LOCAL };
+    const { valores, erros } = await caracteristicasConferidas(tx, dados.tipoId, caracteristicasDigitadas);
+    if (Object.keys(erros).length) return { criado: false as const, erros };
     const reserva = await reservarCodigo(tx, dados.tipoId);
     if (!reserva) return { criado: false as const, erros: { tipoId: "Escolha o tipo." } };
 
     const [novo] = await tx
       .insert(itens)
-      .values({ ...aplicarCategoria(dados, reserva.categoria), codigo: reserva.codigo })
+      .values({ ...aplicarCategoria(dados, reserva.categoria), codigo: reserva.codigo, caracteristicas: valores })
       .returning({ id: itens.id });
     await registrarCadastro(tx, [novo.id]);
     return { criado: true as const, codigo: reserva.codigo };
@@ -138,7 +153,12 @@ export type ResultadoDaEdicao =
   | { salvo: false; naoEncontrado: true };
 
 /** Salva as mudanças. Se o tipo mudar, o item ganha o próximo código do tipo novo. */
-export async function editarItem(db: Banco, id: number, dados: DadosDoItem): Promise<ResultadoDaEdicao> {
+export async function editarItem(
+  db: Banco,
+  id: number,
+  dados: DadosDoItem,
+  caracteristicasDigitadas: Record<string, string> = {},
+): Promise<ResultadoDaEdicao> {
   return db.transaction(async (tx): Promise<ResultadoDaEdicao> => {
     const [atual] = await tx
       .select({ codigo: itens.codigo, tipoId: itens.tipoId })
@@ -148,6 +168,8 @@ export async function editarItem(db: Banco, id: number, dados: DadosDoItem): Pro
     if (!atual) return { salvo: false, naoEncontrado: true };
     if (!(await pessoaExiste(tx, dados.usuarioId))) return { salvo: false, erros: ERRO_DE_PESSOA };
     if (!(await localExiste(tx, dados.localId))) return { salvo: false, erros: ERRO_DE_LOCAL };
+    const caracteristicas = await caracteristicasConferidas(tx, dados.tipoId, caracteristicasDigitadas);
+    if (Object.keys(caracteristicas.erros).length) return { salvo: false, erros: caracteristicas.erros };
 
     let codigo = atual.codigo;
     let categoria: Categoria;
@@ -167,7 +189,7 @@ export async function editarItem(db: Banco, id: number, dados: DadosDoItem): Pro
     const antes = await estadoDosItens(tx, [id]);
     await tx
       .update(itens)
-      .set({ ...aplicarCategoria(dados, categoria), codigo, atualizadoEm: sql`now()` })
+      .set({ ...aplicarCategoria(dados, categoria), codigo, caracteristicas: caracteristicas.valores, atualizadoEm: sql`now()` })
       .where(eq(itens.id, id));
     // Mudou a pessoa ou o local? Vai para o histórico.
     await registrarMudancas(tx, antes);
@@ -212,5 +234,7 @@ export function camposParaRepetir(item: Item): Record<string, string> {
     sistemaOperacional: item.sistemaOperacional ?? "",
     dataCompra: item.dataCompra ?? "",
     garantiaAte: item.garantiaAte ?? "",
+    // As características também se repetem (ex.: 73 telefones IP iguais). Vão pelo id ({ "12": "IP" }).
+    ...(item.caracteristicas ?? {}),
   };
 }

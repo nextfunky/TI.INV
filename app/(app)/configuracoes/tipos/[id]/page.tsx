@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { CabecalhoCarregando, CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
+import { CaracteristicasNaConfiguracao } from "@/components/caracteristicas/configuracao";
 import { Trilha } from "@/components/trilha";
 import { FormularioDoTipo } from "@/components/tipos/formulario-do-tipo";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { caracteristicasDoTipo } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { obterTipo, podeMudarCategoria } from "@/lib/itens/tipos";
 import { plural } from "@/lib/texto/plural";
@@ -33,8 +35,10 @@ async function Edicao({ params }: Pick<Props, "params">) {
   await exigirSessao();
   const { id } = await params;
   const numero = Number(id);
-  const tipo = Number.isInteger(numero) && numero > 0 ? await obterTipo(obterBanco(), numero) : null;
+  const db = obterBanco();
+  const tipo = Number.isInteger(numero) && numero > 0 ? await obterTipo(db, numero) : null;
   if (!tipo) notFound();
+  const caracteristicas = await caracteristicasDoTipo(db, tipo.id);
 
   const totalDeItens = tipo.itensAtivos + tipo.itensDescartados;
   // Deixar de ser Computador só sem itens (as outras mudanças não apagam nada).
@@ -62,6 +66,13 @@ async function Edicao({ params }: Pick<Props, "params">) {
             podeExcluir: totalDeItens === 0,
             categoriaTravada,
           }}
+        />
+      </div>
+      <div className="mt-12">
+        <CaracteristicasNaConfiguracao
+          caracteristicas={caracteristicas}
+          novaHref={`/configuracoes/caracteristicas/nova?tipo=${tipo.id}`}
+          nomeDoDono={tipo.nome}
         />
       </div>
     </>

@@ -39,7 +39,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await db.execute(
-    sql`truncate table historico_de_itens, importacoes, movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`,
+    sql`truncate table historico_de_itens, importacoes, movimentos_de_material, materiais, itens, colaboradores, locais, caracteristicas, tipos_de_item restart identity`,
   );
   await db.execute(sql.raw(TIPOS_PADRAO));
   await db.execute(sql.raw(TIPOS_NOVOS));

@@ -145,8 +145,16 @@ describe("cadastro de materiais", () => {
   });
 
   it("lê os filtros do endereço e monta o endereço de volta", () => {
-    expect(lerFiltrosDosMateriais({ q: " cabo ", grupo: "rede_e_rack" })).toEqual({ busca: "cabo", grupo: "rede_e_rack" });
-    expect(lerFiltrosDosMateriais({ grupo: "inventado" })).toEqual({ busca: undefined, grupo: undefined });
+    expect(lerFiltrosDosMateriais({ q: " cabo ", grupo: "rede_e_rack" })).toEqual({ busca: "cabo", grupo: "rede_e_rack", caracteristicas: {} });
+    // Sem grupo, os filtros por característica não valem.
+    expect(lerFiltrosDosMateriais({ grupo: "inventado", c5: "Azul" })).toEqual({ busca: undefined, grupo: undefined, caracteristicas: {} });
+    expect(lerFiltrosDosMateriais({ grupo: "cabos", c5: "HDMI", c6: "nenhum", local: "sem", nome: "Cabo HDMI" })).toEqual({
+      grupo: "cabos",
+      local: "sem",
+      nome: "Cabo HDMI",
+      caracteristicas: { 5: "HDMI", 6: "nenhum" },
+    });
+    expect(enderecoDosMateriais({ grupo: "cabos", caracteristicas: { 6: "2", 5: "HDMI" } })).toBe("/materiais?grupo=cabos&c5=HDMI&c6=2");
     expect(enderecoDosMateriais({ busca: "cabo", grupo: "cabos" })).toBe("/materiais?q=cabo&grupo=cabos");
     expect(enderecoDosMateriais({})).toBe("/materiais");
   });

@@ -33,7 +33,7 @@ let financeiro = 0;
 let rh = 0;
 
 beforeEach(async () => {
-  await db.execute(sql`truncate table historico_de_itens, movimentos_de_material, materiais, itens, colaboradores, locais, tipos_de_item restart identity`);
+  await db.execute(sql`truncate table historico_de_itens, movimentos_de_material, materiais, itens, colaboradores, locais, caracteristicas, tipos_de_item restart identity`);
   await db.execute(sql.raw(TIPOS_PADRAO));
   const u = await criarLocal(db, { nome: "Aparecida do Taboado", paiId: null });
   const unidade = u.criado ? u.local.id : 0;

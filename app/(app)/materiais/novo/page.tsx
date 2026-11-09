@@ -5,6 +5,7 @@ import { CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
 import { FormularioDoMaterial } from "@/components/materiais/formulario";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { listarCaracteristicas, porGrupo } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { listarLocais } from "@/lib/locais/servico";
 import { compatibilidadesUsadas } from "@/lib/materiais/servico";
@@ -28,6 +29,12 @@ export default function PaginaNovoMaterial() {
 async function Formulario() {
   await exigirSessao();
   const db = obterBanco();
-  const [locais, compatibilidades] = await Promise.all([listarLocais(db), compatibilidadesUsadas(db)]);
-  return <FormularioDoMaterial locais={locais.map(({ id, caminho }) => ({ id, caminho }))} compatibilidades={compatibilidades} />;
+  const [locais, compatibilidades, caracteristicas] = await Promise.all([listarLocais(db), compatibilidadesUsadas(db), listarCaracteristicas(db)]);
+  return (
+    <FormularioDoMaterial
+      locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+      compatibilidades={compatibilidades}
+      caracteristicasPorGrupo={porGrupo(caracteristicas)}
+    />
+  );
 }

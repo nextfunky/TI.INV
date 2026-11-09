@@ -4,28 +4,42 @@ import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { SEM_VALOR, type FiltroDeCaracteristicaNaTela } from "@/lib/caracteristicas/filtros";
 import { cx } from "@/lib/classes";
 import { CONDICOES, NOME_DA_CONDICAO } from "@/lib/itens/valores";
 import { enderecoDosMateriais, type CondicaoDoFiltro, type FiltrosDosMateriais } from "@/lib/materiais/filtros";
 import { GRUPOS, NOME_DO_GRUPO, type Grupo } from "@/lib/materiais/valores";
+import { comOsParametros } from "@/lib/resumo/tabela";
 
-import { Selecao } from "../inventario/busca-e-selecoes";
+import { Selecao, SelecaoDeCaracteristica } from "../inventario/busca-e-selecoes";
 
-/** Busca e filtros por grupo, condição, compatibilidade e local na lista de materiais. Escolher o grupo já aplica; a busca vale ao apertar Enter. */
+/**
+ * Busca e filtros por grupo, características do grupo, condição,
+ * compatibilidade e local na lista de materiais. Escolher já aplica; a busca
+ * vale ao apertar Enter. No Resumo, os filtros continuam no Resumo.
+ */
 export function FiltrosDosMateriaisNaTela({
   filtros,
   locais,
   compatibilidades,
+  caracteristicas,
+  manter,
 }: {
   filtros: FiltrosDosMateriais;
   locais: Array<{ id: number; caminho: string }>;
   compatibilidades: string[];
+  /** Os filtros por característica do grupo escolhido (vazio sem grupo). */
+  caracteristicas: FiltroDeCaracteristicaNaTela[];
+  /** Outros parâmetros que continuam no endereço (a visão Resumo e o cruzamento escolhido). */
+  manter: Record<string, string>;
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState(filtros.busca ?? "");
 
   function aplicar(mudanca: Partial<FiltrosDosMateriais>) {
-    router.push(enderecoDosMateriais({ ...filtros, busca: busca.trim() || undefined, ...mudanca }));
+    const endereco = enderecoDosMateriais({ ...filtros, busca: busca.trim() || undefined, ...mudanca });
+    // Trocar de grupo muda as características: o cruzamento volta ao padrão do novo grupo.
+    router.push(comOsParametros(endereco, "grupo" in mudanca && mudanca.grupo !== filtros.grupo ? (manter.visao ? { visao: manter.visao } : {}) : manter));
   }
 
   function aoEnviar(e: FormEvent<HTMLFormElement>) {
@@ -58,7 +72,7 @@ export function FiltrosDosMateriaisNaTela({
             aria-label="Limpar a busca"
             onClick={() => {
               setBusca("");
-              router.push(enderecoDosMateriais({ ...filtros, busca: undefined }));
+              router.push(comOsParametros(enderecoDosMateriais({ ...filtros, busca: undefined }), manter));
             }}
             className="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
           >
@@ -73,7 +87,8 @@ export function FiltrosDosMateriaisNaTela({
         rotulo="Grupo"
         ativa={Boolean(filtros.grupo)}
         value={filtros.grupo ?? ""}
-        onChange={(e) => aplicar({ grupo: (e.target.value || undefined) as Grupo | undefined })}
+        // As características e o nome exato são do grupo anterior: saem junto.
+        onChange={(e) => aplicar({ grupo: (e.target.value || undefined) as Grupo | undefined, caracteristicas: {}, nome: undefined })}
       >
         <option value="">Todos os grupos</option>
         {GRUPOS.map((g) => (
@@ -82,6 +97,15 @@ export function FiltrosDosMateriaisNaTela({
           </option>
         ))}
       </Selecao>
+
+      {caracteristicas.map((c) => (
+        <SelecaoDeCaracteristica
+          key={c.id}
+          caracteristica={c}
+          valor={filtros.caracteristicas?.[c.id] ?? ""}
+          aoMudar={(valor) => aplicar({ caracteristicas: { ...filtros.caracteristicas, [c.id]: valor } })}
+        />
+      ))}
 
       <Selecao
         id="filtro-condicao-material"
@@ -100,7 +124,7 @@ export function FiltrosDosMateriaisNaTela({
         <option value="nenhuma">Não informada</option>
       </Selecao>
 
-      {compatibilidades.length ? (
+      {compatibilidades.length || filtros.compativel ? (
         <Selecao
           id="filtro-compativel"
           name="compativel"
@@ -115,6 +139,10 @@ export function FiltrosDosMateriaisNaTela({
               {c}
             </option>
           ))}
+          {filtros.compativel && filtros.compativel !== SEM_VALOR && !compatibilidades.includes(filtros.compativel) ? (
+            <option value={filtros.compativel}>{filtros.compativel}</option>
+          ) : null}
+          <option value={SEM_VALOR}>Não informado</option>
         </Selecao>
       ) : null}
 
@@ -124,15 +152,29 @@ export function FiltrosDosMateriaisNaTela({
         rotulo="Local"
         ativa={Boolean(filtros.local)}
         value={filtros.local ?? ""}
-        onChange={(e) => aplicar({ local: e.target.value ? Number(e.target.value) : undefined })}
+        onChange={(e) => aplicar({ local: e.target.value === "sem" ? "sem" : e.target.value ? Number(e.target.value) : undefined })}
       >
         <option value="">Todos os locais</option>
+        <option value="sem">Sem local definido</option>
         {locais.map((l) => (
           <option key={l.id} value={l.id}>
             {l.caminho}
           </option>
         ))}
       </Selecao>
+
+      {/* O nome exato vem de um clique no Resumo: aparece aqui para dar para tirar. */}
+      {filtros.nome ? (
+        <button
+          type="button"
+          onClick={() => aplicar({ nome: undefined })}
+          aria-label={`Tirar o filtro “${filtros.nome}”`}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-accent bg-accent-suave px-3 text-13 text-accent"
+        >
+          {filtros.nome}
+          <X aria-hidden="true" className="size-3.5" />
+        </button>
+      ) : null}
 
       <noscript>
         <button type="submit" className="h-8 rounded-full border border-gray-200 bg-white px-3 text-13">

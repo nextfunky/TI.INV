@@ -5,6 +5,7 @@ import { CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
 import { FormularioDoItem } from "@/components/inventario/formulario-do-item";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { listarCaracteristicas, porTipo } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { camposParaRepetir, obterItemPorCodigo } from "@/lib/itens/servico";
 import { listarParaEscolha } from "@/lib/colaboradores/servico";
@@ -31,7 +32,12 @@ async function Formulario({ searchParams }: Pick<PageProps<"/inventario/novo">, 
   await exigirSessao();
   const { repetir } = await searchParams;
   const db = obterBanco();
-  const [tipos, pessoas, locais] = await Promise.all([listarTipos(db), listarParaEscolha(db), listarLocais(db)]);
+  const [tipos, pessoas, locais, caracteristicas] = await Promise.all([
+    listarTipos(db),
+    listarParaEscolha(db),
+    listarLocais(db),
+    listarCaracteristicas(db),
+  ]);
 
   // Depois de "Salvar e cadastrar outro": repete o que é igual ao item anterior.
   const anterior = typeof repetir === "string" ? await obterItemPorCodigo(db, repetir) : null;
@@ -42,7 +48,8 @@ async function Formulario({ searchParams }: Pick<PageProps<"/inventario/novo">, 
       key={anterior?.codigo ?? "novo"}
       tipos={tipos.map(({ id, nome, categoria }) => ({ id, nome, categoria }))}
       pessoas={pessoas}
-          locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+      locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+      caracteristicasPorTipo={porTipo(caracteristicas)}
       iniciais={iniciais}
       focarNaSerie={Boolean(anterior)}
     />

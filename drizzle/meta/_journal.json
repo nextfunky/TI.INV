@@ -78,6 +78,13 @@
       "when": 1794229894052,
       "tag": "0010_compativel-com",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794230670563,
+      "tag": "0011_caracteristicas",
+      "breakpoints": true
     }
   ]
 }

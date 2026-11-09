@@ -72,6 +72,9 @@ export function MenuDaConta({ usuario }: { usuario: string }) {
         <Link href="/configuracoes/tipos" className={ITEM}>
           Tipos de item
         </Link>
+        <Link href="/configuracoes/grupos" className={ITEM}>
+          Grupos de material
+        </Link>
         <Link href="/configuracoes/senha" className={ITEM}>
           Alterar senha
         </Link>

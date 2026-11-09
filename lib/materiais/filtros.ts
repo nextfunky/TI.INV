@@ -1,5 +1,10 @@
+import {
+  escreverFiltrosDeCaracteristicas,
+  lerFiltrosDeCaracteristicas,
+  temFiltroDeCaracteristica,
+  type FiltrosDeCaracteristicas,
+} from "@/lib/caracteristicas/filtros";
 import { comParametro } from "@/lib/itens/painel";
-
 import { CONDICOES, type Condicao } from "@/lib/itens/valores";
 
 import { GRUPOS, type Grupo } from "./valores";
@@ -10,11 +15,21 @@ export type CondicaoDoFiltro = Condicao | "nenhuma";
 export type FiltrosDosMateriais = {
   busca?: string;
   grupo?: Grupo;
-  local?: number;
+  /** Id do local (inclui os de dentro) ou "sem" (sem local definido). */
+  local?: number | "sem";
   condicao?: CondicaoDoFiltro;
-  /** Compatível com (texto exato, como aparece na lista). */
+  /** Compatível com (texto exato, como aparece na lista), ou "nenhum" (sem informação). */
   compativel?: string;
+  /** O nome exato do material (vem do Resumo, ao clicar numa célula). */
+  nome?: string;
+  /** Filtros por característica do grupo: { idDaCaracteristica: valor } ("nenhum" = sem valor). */
+  caracteristicas?: FiltrosDeCaracteristicas;
 };
+
+/** Algum filtro ligado? */
+export function filtrandoMateriais(f: FiltrosDosMateriais): boolean {
+  return Boolean(f.busca || f.grupo || f.local || f.condicao || f.compativel || f.nome || temFiltroDeCaracteristica(f.caracteristicas));
+}
 
 function idPositivo(valor: string | string[] | undefined): number | undefined {
   const n = typeof valor === "string" && /^\d{1,9}$/.test(valor) ? Number(valor) : 0;
@@ -27,7 +42,17 @@ export function lerFiltrosDosMateriais(parametros: Record<string, string | strin
   const grupo = GRUPOS.find((g) => g === parametros.grupo);
   const condicao = [...CONDICOES, "nenhuma" as const].find((c) => c === parametros.condicao);
   const compativel = typeof parametros.compativel === "string" ? parametros.compativel.trim().slice(0, 100) : "";
-  return { busca: q || undefined, grupo, local: idPositivo(parametros.local), condicao, compativel: compativel || undefined };
+  const nome = typeof parametros.nome === "string" ? parametros.nome.trim().slice(0, 100) : "";
+  return {
+    busca: q || undefined,
+    grupo,
+    local: parametros.local === "sem" ? "sem" : idPositivo(parametros.local),
+    condicao,
+    compativel: compativel || undefined,
+    nome: nome || undefined,
+    // As características dependem do grupo: sem grupo, não valem.
+    caracteristicas: grupo ? lerFiltrosDeCaracteristicas(parametros) : {},
+  };
 }
 
 export function enderecoDosMateriais(filtros: FiltrosDosMateriais): string {
@@ -37,6 +62,8 @@ export function enderecoDosMateriais(filtros: FiltrosDosMateriais): string {
   if (filtros.local) p.set("local", String(filtros.local));
   if (filtros.condicao) p.set("condicao", filtros.condicao);
   if (filtros.compativel) p.set("compativel", filtros.compativel);
+  if (filtros.nome) p.set("nome", filtros.nome);
+  escreverFiltrosDeCaracteristicas(p, filtros.caracteristicas);
   const consulta = p.toString();
   return consulta ? `/materiais?${consulta}` : "/materiais";
 }

@@ -17,7 +17,10 @@ import {
 import { cx } from "@/lib/classes";
 import { ESTADO_INICIAL } from "@/lib/formulario";
 
+import type { Caracteristica } from "@/lib/caracteristicas/valores";
+
 import { BarraDeAcoes } from "../barra-de-acoes";
+import { CamposDasCaracteristicas } from "../caracteristicas/campos";
 import { Botao, classesDoBotao } from "../botao";
 import { BotaoEnviar } from "../botao-enviar";
 import { CampoSelecao, CampoTexto, CampoTextoLongo, FaixaDeErro } from "../campo";
@@ -33,6 +36,8 @@ type Props = {
   pessoas: Array<{ id: number; nome: string; caminho: string | null }>;
   /** Os locais, para o local próprio dos itens sem usuário. */
   locais: Array<{ id: number; caminho: string }>;
+  /** As características de cada tipo ({ tipoId: [...] }): os campos mudam ao trocar o tipo. */
+  caracteristicasPorTipo: Record<number, Caracteristica[]>;
   /** Valores iniciais dos campos. */
   iniciais: Record<string, string>;
   /** Na edição: o item que está sendo editado. */
@@ -58,6 +63,7 @@ function Secao({
   return (
     <section
       hidden={escondida}
+      aria-label={titulo}
       className={cx(
         "grid gap-x-8 gap-y-4 border-t border-gray-100 p-6 first:border-t-0 md:grid-cols-3",
         aparecer && "animate-aparecer",
@@ -73,7 +79,7 @@ function Secao({
 }
 
 /** O formulário de item: novo e editar. */
-export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, iniciais, item, focarNaSerie }: Props) {
+export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, caracteristicasPorTipo, iniciais, item, focarNaSerie }: Props) {
   const editando = Boolean(item);
   const acao = item ? salvarItem.bind(null, item.id) : cadastrarItem;
   const [estado, enviar] = useActionState(acao, ESTADO_INICIAL);
@@ -90,6 +96,8 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, inic
   const [tipoMudou, setTipoMudou] = useState(false);
   const categoria = tipos.find((t) => String(t.id) === tipoId)?.categoria;
   const ehComputador = categoria === "computador";
+  const tipoEscolhido = tipos.find((t) => String(t.id) === tipoId);
+  const caracteristicas = tipoEscolhido ? (caracteristicasPorTipo[tipoEscolhido.id] ?? []) : [];
 
   // Usuário e status andam juntos: escolher alguém num item em estoque passa
   // para "Em uso"; tirar a pessoa de um item em uso volta para "Em estoque".
@@ -246,6 +254,16 @@ export function FormularioDoItem({ tipos, pessoas: pessoasIniciais, locais, inic
               defaultValue={valor("sistemaOperacional")}
               erro={erros.sistemaOperacional}
             />
+          </Secao>
+
+          <Secao
+            titulo="Características"
+            descricao={`Próprias de ${tipoEscolhido?.nome ?? "cada tipo"}. Ajudam a filtrar e a conferir.`}
+            escondida={!caracteristicas.length}
+            aparecer={tipoMudou}
+          >
+            {/* Ao trocar o tipo, os campos são outros: a chave recomeça os campos do zero. */}
+            <CamposDasCaracteristicas key={tipoId} caracteristicas={caracteristicas} valores={valores} erros={erros} />
           </Secao>
 
           <Secao titulo="Compra e garantia" descricao="Avisamos no início quando a garantia estiver perto de vencer.">

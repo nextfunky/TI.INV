@@ -1,7 +1,8 @@
-import { and, asc, count, desc, eq, ilike, inArray, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 
 import { colaboradores, itens, locais, tiposDeItem } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
+import { condicoesDasCaracteristicas, textoDasCaracteristicas } from "@/lib/caracteristicas/consultas";
 import { plural } from "@/lib/texto/plural";
 
 import type { FiltrosDoInventario } from "./filtros";
@@ -23,8 +24,9 @@ function escaparBusca(termo: string): string {
 }
 
 /**
- * Procura o texto no código, hostname, nº de série, marca, modelo, tipo e
- * no nome de quem usa. Sem diferença de maiúsculas, por parte do texto.
+ * Procura o texto no código, hostname, nº de série, marca, modelo, tipo,
+ * características (ex.: "sem fio") e no nome de quem usa. Sem diferença de
+ * maiúsculas, por parte do texto.
  */
 export function condicaoDeBusca(termo: string): SQL | undefined {
   const padrao = `%${escaparBusca(termo.trim())}%`;
@@ -36,6 +38,7 @@ export function condicaoDeBusca(termo: string): SQL | undefined {
     ilike(itens.modelo, padrao),
     ilike(sql`concat_ws(' ', ${itens.marca}, ${itens.modelo})`, padrao),
     ilike(tiposDeItem.nome, padrao),
+    ilike(textoDasCaracteristicas(itens.caracteristicas), padrao),
     ilike(colaboradores.nome, padrao),
   );
 }
@@ -96,7 +99,9 @@ export async function condicoesDoInventario(
   if (filtros.busca) condicoes.push(condicaoDeBusca(filtros.busca));
   if (filtros.categoria) condicoes.push(eq(tiposDeItem.categoria, filtros.categoria));
   if (filtros.tipo) condicoes.push(eq(itens.tipoId, filtros.tipo));
-  if (filtros.condicao) condicoes.push(eq(itens.condicao, filtros.condicao));
+  if (filtros.condicao === "nenhuma") condicoes.push(isNull(itens.condicao));
+  else if (filtros.condicao) condicoes.push(eq(itens.condicao, filtros.condicao));
+  if (filtros.tipo) condicoes.push(...condicoesDasCaracteristicas(itens.caracteristicas, filtros.caracteristicas));
   if (filtros.pessoa) condicoes.push(eq(itens.usuarioId, filtros.pessoa));
   // O local atual (o da pessoa ou o do item), incluindo os locais de dentro.
   if (filtros.local === "sem") condicoes.push(sql`${LOCAL_ATUAL} is null`);
@@ -142,4 +147,10 @@ export async function buscarItens(db: Banco, termo: string): Promise<ItemComTipo
   if (termo.trim()) consulta.where(condicaoDeBusca(termo));
   const linhas = await consulta.orderBy(desc(itens.atualizadoEm), asc(itens.id)).limit(MAXIMO_NA_BUSCA);
   return linhas.map(juntarItemETipo);
+}
+
+/** Todos os itens dos filtros, sem páginas, em ordem de código (para o Resumo e o relatório). */
+export async function todosOsItens(db: Banco, filtros: Omit<FiltrosDoInventario, "pagina"> & { categorias?: Categoria[] }): Promise<ItemComTipo[]> {
+  const onde = await condicoesDoInventario(db, filtros);
+  return (await consultaDeItens(db).where(onde).orderBy(...ORDEM_DO_CODIGO)).map(juntarItemETipo);
 }

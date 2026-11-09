@@ -2,6 +2,8 @@ import { ArrowLeft, MapPin, Pencil, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { valorFormatado } from "@/lib/caracteristicas/regras";
+import { caracteristicasDoTipo, simples } from "@/lib/caracteristicas/servico";
 import { listarParaEscolha, tambemCom } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
 import { cx } from "@/lib/classes";
@@ -18,6 +20,7 @@ import { juntar } from "@/lib/texto/plural";
 
 import { Avatar } from "../avatar";
 import { classesDoBotao } from "../botao";
+import { DadosDasCaracteristicas } from "../caracteristicas/etiquetas";
 import { ListaDoHistorico } from "../historico/lista";
 import { IconeDoTipo } from "../icone-do-tipo";
 import { EtiquetaDeStatus } from "../status";
@@ -78,7 +81,7 @@ function Dado({ rotulo, vazio = "Não informado", mono, children }: { rotulo: st
 
 export function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
-    <section className="border-t border-gray-100 px-5 py-4">
+    <section aria-label={titulo} className="border-t border-gray-100 px-5 py-4">
       <h3 className="text-13 font-medium text-gray-500">{titulo}</h3>
       <div className="mt-3">{children}</div>
     </section>
@@ -113,12 +116,13 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
     );
   }
 
-  const [outros, historico, totalNoHistorico, pessoas, todosOsLocais] = await Promise.all([
+  const [outros, historico, totalNoHistorico, pessoas, todosOsLocais, caracteristicas] = await Promise.all([
     item.usuario ? tambemCom(db, item.usuario.id, item.id) : null,
     historicoDoItem(db, item.id, REGISTROS_NO_PAINEL),
     totalDoHistorico(db, item.id),
     listarParaEscolha(db),
     listarLocais(db),
+    caracteristicasDoTipo(db, item.tipoId),
   ]);
   const agora = new Date();
   const titulo = tituloDoItem(item);
@@ -222,6 +226,12 @@ export async function PainelDoItem({ codigo, lista, codigos }: { codigo: string;
           </Dado>
         </dl>
       </Bloco>
+
+      {caracteristicas.length ? (
+        <Bloco titulo="Características">
+          <DadosDasCaracteristicas caracteristicas={caracteristicas.map(simples)} valores={item.caracteristicas} formatar={valorFormatado} />
+        </Bloco>
+      ) : null}
 
       {item.tipo.categoria === "computador" ? (
         <Bloco titulo="Computador">

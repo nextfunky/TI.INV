@@ -197,7 +197,7 @@ describe("filtros novos do Inventário", () => {
 
   it("ignora valores inválidos no endereço", () => {
     expect(lerFiltros({ tipo: "abc", pessoa: "-1", condicao: "ótimo", q: "   " })).toEqual({
-      busca: undefined, categoria: undefined, status: undefined, tipo: undefined, condicao: undefined, pessoa: undefined, pagina: 1,
+      busca: undefined, categoria: undefined, status: undefined, tipo: undefined, condicao: undefined, caracteristicas: {}, pessoa: undefined, pagina: 1,
     });
   });
 

@@ -2,10 +2,13 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { listarCaracteristicas, porTipo } from "@/lib/caracteristicas/servico";
 import { cx } from "@/lib/classes";
+import { obterBanco } from "@/lib/db";
 import { subtituloDoItem, tituloDoItem } from "@/lib/itens/nomes";
 import type { ItemComTipo } from "@/lib/itens/servico";
 
+import { EtiquetasDasCaracteristicas } from "../caracteristicas/etiquetas";
 import { PontoDeStatus } from "../status";
 
 /**
@@ -14,7 +17,7 @@ import { PontoDeStatus } from "../status";
  * Na página da pessoa, a coluna Usuário sai (todos são dela) e entra uma ação
  * por linha ("Devolver").
  */
-export function TabelaDeItens({
+export async function TabelaDeItens({
   itens,
   mostrarUsuario = true,
   acao,
@@ -29,6 +32,7 @@ export function TabelaDeItens({
   /** O código do item aberto no painel: a linha fica marcada. */
   selecionado?: string | null;
 }) {
+  const caracteristicasPorTipo = porTipo(await listarCaracteristicas(obterBanco()));
   // Com o painel aberto, a lista fica mais estreita: a coluna Tipo sai em telas médias.
   const comPainel = selecionado !== undefined && selecionado !== null;
   return (
@@ -85,6 +89,7 @@ export function TabelaDeItens({
                     {tituloDoItem(item)}
                   </Link>
                   {subtitulo ? <p className="text-13 text-gray-500">{subtitulo}</p> : null}
+                  <EtiquetasDasCaracteristicas caracteristicas={caracteristicasPorTipo[item.tipoId]} valores={item.caracteristicas} />
                 </td>
                 <td className={cx("py-3 pr-4 align-middle text-gray-600", comPainel && "max-xl:hidden")}>{item.tipo.nome}</td>
                 {mostrarUsuario ? (

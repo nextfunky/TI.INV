@@ -1,6 +1,10 @@
 import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, or, sql, sum } from "drizzle-orm";
 
 import { colaboradores, locais, materiais, movimentosDeMaterial } from "@/lib/db/schema";
+import { condicoesDasCaracteristicas, textoDasCaracteristicas } from "@/lib/caracteristicas/consultas";
+import { SEM_VALOR } from "@/lib/caracteristicas/filtros";
+import { conferirValores } from "@/lib/caracteristicas/regras";
+import { caracteristicasDoGrupo, simples } from "@/lib/caracteristicas/servico";
 import type { Banco } from "@/lib/db/tipos";
 import { comOsDeDentro } from "@/lib/locais/arvore";
 
@@ -27,13 +31,22 @@ async function localExiste(db: Banco, localId: number | null) {
 }
 
 /** Cadastra o material. A quantidade que já existe entra como a primeira entrada. */
+/** Confere as características digitadas contra as do grupo (ao trocar o grupo, as do grupo antigo saem). */
+async function caracteristicasConferidas(db: Banco, grupo: DadosDoMaterial["grupo"], bruto: Record<string, string>) {
+  return conferirValores((await caracteristicasDoGrupo(db, grupo)).map(simples), bruto);
+}
+
 export async function criarMaterial(
   db: Banco,
   dados: DadosDoMaterial & { quantidade: number },
+  /** As características digitadas ({ idDaCaracteristica: valor }), conferidas aqui contra as do grupo. */
+  caracteristicasDigitadas: Record<string, string> = {},
 ): Promise<{ criado: true; material: Material } | { criado: false; erros: Erros }> {
   if (!(await localExiste(db, dados.localId))) return { criado: false, erros: { localId: LOCAL_INVALIDO } };
+  const { valores, erros } = await caracteristicasConferidas(db, dados.grupo, caracteristicasDigitadas);
+  if (Object.keys(erros).length) return { criado: false, erros };
   const material = await db.transaction(async (tx) => {
-    const [novo] = await tx.insert(materiais).values(dados).returning();
+    const [novo] = await tx.insert(materiais).values({ ...dados, caracteristicas: valores }).returning();
     if (dados.quantidade > 0) {
       await tx.insert(movimentosDeMaterial).values({
         materialId: novo.id,
@@ -53,11 +66,14 @@ export async function editarMaterial(
   db: Banco,
   id: number,
   dados: DadosDoMaterial,
+  caracteristicasDigitadas: Record<string, string> = {},
 ): Promise<{ salvo: true } | { salvo: false; erros: Erros } | { salvo: false; naoEncontrado: true }> {
   if (!(await localExiste(db, dados.localId))) return { salvo: false, erros: { localId: LOCAL_INVALIDO } };
+  const { valores, erros } = await caracteristicasConferidas(db, dados.grupo, caracteristicasDigitadas);
+  if (Object.keys(erros).length) return { salvo: false, erros };
   const [salvo] = await db
     .update(materiais)
-    .set({ ...dados, atualizadoEm: sql`now()` })
+    .set({ ...dados, caracteristicas: valores, atualizadoEm: sql`now()` })
     .where(eq(materiais.id, id))
     .returning({ id: materiais.id });
   return salvo ? { salvo: true } : { salvo: false, naoEncontrado: true };
@@ -94,17 +110,19 @@ function escaparBusca(termo: string): string {
 /** A lista de materiais, por grupo (na ordem da lista) e por nome. A busca olha o nome, a marca/modelo e o local. */
 export async function listarMateriais(db: Banco, filtros: FiltrosDosMateriais = {}) {
   const termo = filtros.busca ? `%${escaparBusca(filtros.busca)}%` : null;
-  const arvore = filtros.local ? await db.select({ id: locais.id, nome: locais.nome, paiId: locais.paiId }).from(locais) : [];
-  const doLocal = filtros.local ? comOsDeDentro(arvore, filtros.local) : null;
+  const arvore = typeof filtros.local === "number" ? await db.select({ id: locais.id, nome: locais.nome, paiId: locais.paiId }).from(locais) : [];
+  const doLocal = typeof filtros.local === "number" ? comOsDeDentro(arvore, filtros.local) : null;
   return db
     .select({
       id: materiais.id,
       nome: materiais.nome,
       marcaModelo: materiais.marcaModelo,
       compativelCom: materiais.compativelCom,
+      caracteristicas: materiais.caracteristicas,
       grupo: materiais.grupo,
       condicao: materiais.condicao,
       quantidade: materiais.quantidade,
+      localId: materiais.localId,
       caminho: locais.caminho,
     })
     .from(materiais)
@@ -112,11 +130,23 @@ export async function listarMateriais(db: Banco, filtros: FiltrosDosMateriais = 
     .where(
       and(
         filtros.grupo ? eq(materiais.grupo, filtros.grupo) : undefined,
-        doLocal ? inArray(materiais.localId, doLocal) : undefined,
+        doLocal ? inArray(materiais.localId, doLocal) : filtros.local === "sem" ? isNull(materiais.localId) : undefined,
         filtros.condicao === "nenhuma" ? isNull(materiais.condicao) : filtros.condicao ? eq(materiais.condicao, filtros.condicao) : undefined,
-        filtros.compativel ? eq(materiais.compativelCom, filtros.compativel) : undefined,
+        filtros.compativel === SEM_VALOR
+          ? isNull(materiais.compativelCom)
+          : filtros.compativel
+            ? eq(materiais.compativelCom, filtros.compativel)
+            : undefined,
+        filtros.nome ? eq(materiais.nome, filtros.nome) : undefined,
+        ...condicoesDasCaracteristicas(materiais.caracteristicas, filtros.caracteristicas),
         termo
-          ? or(ilike(materiais.nome, termo), ilike(materiais.marcaModelo, termo), ilike(materiais.compativelCom, termo), ilike(locais.caminho, termo))
+          ? or(
+              ilike(materiais.nome, termo),
+              ilike(materiais.marcaModelo, termo),
+              ilike(materiais.compativelCom, termo),
+              ilike(locais.caminho, termo),
+              ilike(textoDasCaracteristicas(materiais.caracteristicas), termo),
+            )
           : undefined,
       ),
     )
@@ -174,6 +204,7 @@ export async function obterMaterial(db: Banco, id: number) {
       nome: materiais.nome,
       marcaModelo: materiais.marcaModelo,
       compativelCom: materiais.compativelCom,
+      caracteristicas: materiais.caracteristicas,
       grupo: materiais.grupo,
       localId: materiais.localId,
       condicao: materiais.condicao,

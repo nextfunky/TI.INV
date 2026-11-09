@@ -1,6 +1,8 @@
 import { ArrowLeft, MapPin, Pencil, X } from "lucide-react";
 import Link from "next/link";
 
+import { valorFormatado } from "@/lib/caracteristicas/regras";
+import { caracteristicasDoGrupo, simples } from "@/lib/caracteristicas/servico";
 import { cx } from "@/lib/classes";
 import { listarParaEscolha } from "@/lib/colaboradores/servico";
 import { obterBanco } from "@/lib/db";
@@ -13,6 +15,7 @@ import { formatarDataHora } from "@/lib/texto/data";
 import { juntar } from "@/lib/texto/plural";
 
 import { classesDoBotao } from "../botao";
+import { DadosDasCaracteristicas } from "../caracteristicas/etiquetas";
 import { Bloco, MOLDURA_DO_PAINEL } from "../inventario/painel-do-item";
 import { TeclasDoPainel } from "../inventario/teclas-do-painel";
 import { ExcluirMaterial } from "./excluir";
@@ -54,7 +57,11 @@ export async function PainelDoMaterial({ id, lista, ids }: { id: number; lista: 
     );
   }
 
-  const [movimentos, pessoas] = await Promise.all([movimentosDoMaterial(db, id), listarParaEscolha(db)]);
+  const [movimentos, pessoas, caracteristicas] = await Promise.all([
+    movimentosDoMaterial(db, id),
+    listarParaEscolha(db),
+    caracteristicasDoGrupo(db, material.grupo),
+  ]);
   const nomeCompleto = nomeDoMaterial(material);
 
   return (
@@ -119,6 +126,12 @@ export async function PainelDoMaterial({ id, lista, ids }: { id: number; lista: 
           />
         </div>
       </section>
+
+      {caracteristicas.length ? (
+        <Bloco titulo="Características">
+          <DadosDasCaracteristicas caracteristicas={caracteristicas.map(simples)} valores={material.caracteristicas} formatar={valorFormatado} />
+        </Bloco>
+      ) : null}
 
       {material.observacoes ? (
         <Bloco titulo="Observações">

@@ -7,6 +7,7 @@ import { ExcluirMaterial } from "@/components/materiais/excluir";
 import { FormularioDoMaterial } from "@/components/materiais/formulario";
 import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
+import { listarCaracteristicas, porGrupo } from "@/lib/caracteristicas/servico";
 import { obterBanco } from "@/lib/db";
 import { listarLocais } from "@/lib/locais/servico";
 import { nomeDoMaterial } from "@/lib/materiais/nomes";
@@ -37,7 +38,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
   const db = obterBanco();
   const material = Number.isInteger(id) && id > 0 ? await obterMaterial(db, id) : null;
   if (!material) notFound();
-  const [locais, compatibilidades] = await Promise.all([listarLocais(db), compatibilidadesUsadas(db)]);
+  const [locais, compatibilidades, caracteristicas] = await Promise.all([listarLocais(db), compatibilidadesUsadas(db), listarCaracteristicas(db)]);
 
   return (
     <>
@@ -58,6 +59,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
           material={material}
           locais={locais.map(({ id: i, caminho }) => ({ id: i, caminho }))}
           compatibilidades={compatibilidades}
+          caracteristicasPorGrupo={porGrupo(caracteristicas)}
         />
       </div>
     </>
