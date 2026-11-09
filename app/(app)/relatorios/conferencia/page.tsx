@@ -165,9 +165,10 @@ async function Conferencia({ searchParams }: Pick<Props, "searchParams">) {
                           <td className={CELULA}>
                             {m.nome}
                             {m.marcaModelo ? <span className="text-gray-600"> · {m.marcaModelo}</span> : null}
+                            {m.compativelCom ? <span className="block text-11 text-gray-600">Compatível com {m.compativelCom}</span> : null}
                           </td>
                           <td className={CELULA}>{m.caminho ?? <span className="text-gray-600">Sem local definido</span>}</td>
-                          <td className={CELULA}>{m.condicao ? NOME_DA_CONDICAO[m.condicao] : ""}</td>
+                          <td className={CELULA}>{m.condicao ? NOME_DA_CONDICAO[m.condicao] : <span className="text-gray-500">Não informada</span>}</td>
                           <td className={`${CELULA} text-right font-mono tabular-nums`}>{m.quantidade.toLocaleString("pt-BR")}</td>
                           <td className={CELULA}>
                             <span aria-hidden="true" className="ml-auto block h-4 w-14 border-b border-gray-500" />

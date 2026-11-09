@@ -83,8 +83,9 @@ export async function PainelDoMaterial({ id, lista, ids }: { id: number; lista: 
         </div>
         <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em] break-words">{material.nome}</h2>
         <p className="mt-0.5 text-gray-500">
-          {juntar(material.marcaModelo, material.condicao ? NOME_DA_CONDICAO[material.condicao] : null) || "Sem marca/modelo"}
+          {juntar(material.marcaModelo, material.condicao ? NOME_DA_CONDICAO[material.condicao] : "Condição não informada")}
         </p>
+        {material.compativelCom ? <p className="mt-0.5 text-13 text-gray-600">Compatível com {material.compativelCom}</p> : null}
         <div className="mt-4 flex flex-wrap gap-2">
           <Link href={`/materiais/${id}/editar`} className={classesDoBotao("secundario")}>
             <Pencil aria-hidden="true" />

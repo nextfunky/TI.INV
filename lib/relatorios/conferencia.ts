@@ -62,9 +62,11 @@ export async function dadosDaConferencia(db: Banco, pedido: PedidoDeConferencia)
   let materiais: DadosDaConferencia["materiais"] = null;
   if (pedido.materiais) {
     if (fm.grupos.length) filtros.push(`Grupos de material: ${fm.grupos.map((g) => NOME_DO_GRUPO[g]).join(", ")}`);
+    if (fm.condicao) filtros.push(`Condição dos materiais: ${fm.condicao === "nenhuma" ? "Não informada" : NOME_DA_CONDICAO[fm.condicao]}`);
+    if (fm.compativel) filtros.push(`Compatível com: ${fm.compativel}`);
     if (fm.busca) filtros.push(`Busca nos materiais: “${fm.busca}”`);
     if (fm.local && !fi.local) filtros.push(`Local: ${locais.find((l) => l.id === fm.local)?.caminho ?? "—"}`);
-    const lista = (await listarMateriais(db, { busca: fm.busca, local: fm.local })).filter(
+    const lista = (await listarMateriais(db, { busca: fm.busca, local: fm.local, condicao: fm.condicao, compativel: fm.compativel })).filter(
       (m) => !fm.grupos.length || fm.grupos.includes(m.grupo),
     );
     materiais = {

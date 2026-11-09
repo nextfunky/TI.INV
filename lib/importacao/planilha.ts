@@ -38,6 +38,7 @@ export const COLUNAS_DOS_ITENS = [
 export const COLUNAS_DOS_MATERIAIS = [
   "Nome",
   "Marca / modelo",
+  "Compatível com",
   "Grupo",
   "Local",
   "Condição",
@@ -101,6 +102,9 @@ const APELIDOS: Record<string, string> = {
   observacao: "Observações",
   obs: "Observações",
   marcamodelo: "Marca / modelo",
+  compativel: "Compatível com",
+  compativelcom: "Compatível com",
+  impressora: "Compatível com",
   qtd: "Quantidade",
   quantidadedisponivel: "Quantidade",
 };
@@ -168,6 +172,7 @@ const ROTULO_DO_CAMPO: Record<string, string> = {
   observacoes: "Observações",
   nome: "Nome",
   marcaModelo: "Marca / modelo",
+  compativelCom: "Compatível com",
   quantidade: "Quantidade",
 };
 
@@ -293,6 +298,7 @@ function lerMateriais(aba: AbaLida, erros: ErroDaPlanilha[]): LinhaDeMaterial[] 
     const validacao = regrasDoNovoMaterial.safeParse({
       nome: texto(valor("Nome")),
       marcaModelo: texto(valor("Marca / modelo")),
+      compativelCom: texto(valor("Compatível com")),
       grupo: grupo ?? "outros",
       localId: "",
       condicao: condicao ?? "",

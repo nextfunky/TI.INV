@@ -182,6 +182,8 @@ export const materiais = pgTable(
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     nome: text("nome").notNull(),
     marcaModelo: text("marca_modelo"),
+    /** Para que equipamento serve (ex.: o toner da "Ricoh SP 3710"). */
+    compativelCom: text("compativel_com"),
     grupo: grupoDoMaterial("grupo").notNull(),
     localId: integer("local_id").references(() => locais.id, { onDelete: "restrict" }),
     condicao: condicaoDoItem("condicao"),
@@ -194,6 +196,7 @@ export const materiais = pgTable(
     check("materiais_quantidade_positiva", sql`${t.quantidade} >= 0`),
     index("materiais_grupo_idx").on(t.grupo),
     index("materiais_local_id_idx").on(t.localId),
+    index("materiais_condicao_idx").on(t.condicao),
   ],
 );
 

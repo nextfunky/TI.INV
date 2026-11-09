@@ -1,7 +1,7 @@
 import { ChevronRight, Plus, Search, Boxes } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 
 import { classesDoBotao } from "@/components/botao";
 import { CabecalhoCarregando, CabecalhoDaPagina } from "@/components/cabecalho-da-pagina";
@@ -13,10 +13,10 @@ import { RelatorioDeConferencia } from "@/components/relatorios/conferencia";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { cx } from "@/lib/classes";
 import { obterBanco } from "@/lib/db";
-import { NOME_DA_CONDICAO } from "@/lib/itens/valores";
+import { CONDICOES, NOME_DA_CONDICAO } from "@/lib/itens/valores";
 import { listarLocais } from "@/lib/locais/servico";
 import { comMaterial, enderecoDosMateriais, lerFiltrosDosMateriais, materialDoEndereco } from "@/lib/materiais/filtros";
-import { listarMateriais, resumoDosMateriais } from "@/lib/materiais/servico";
+import { compatibilidadesUsadas, listarMateriais, resumoDosMateriais } from "@/lib/materiais/servico";
 import { GRUPOS, NOME_DO_GRUPO } from "@/lib/materiais/valores";
 import { juntar, plural } from "@/lib/texto/plural";
 
@@ -48,8 +48,18 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
   const filtros = lerFiltrosDosMateriais(parametros);
   const aberto = materialDoEndereco(parametros);
   const db = obterBanco();
-  const [resumo, lista, locais] = await Promise.all([resumoDosMateriais(db), listarMateriais(db, filtros), listarLocais(db)]);
-  const filtrando = Boolean(filtros.busca || filtros.grupo || filtros.local);
+  const [resumo, lista, locais, compatibilidades] = await Promise.all([
+    resumoDosMateriais(db),
+    listarMateriais(db, filtros),
+    listarLocais(db),
+    compatibilidadesUsadas(db),
+  ]);
+  const filtrando = Boolean(filtros.busca || filtros.grupo || filtros.local || filtros.condicao || filtros.compativel);
+  // Totais por condição (cadastros e unidades), para conferir de relance.
+  const porCondicao = [...CONDICOES, null].map((c) => {
+    const daCondicao = lista.filter((m) => m.condicao === c);
+    return { condicao: c, cadastros: daCondicao.length, unidades: daCondicao.reduce((s, m) => s + m.quantidade, 0) };
+  }).filter((c) => c.cadastros);
   const endereco = enderecoDosMateriais(filtros);
   // A lista já vem em ordem de grupo: aqui só separa os grupos para os títulos.
   const grupos = GRUPOS.map((g) => ({ grupo: g, materiais: lista.filter((m) => m.grupo === g) })).filter((g) => g.materiais.length);
@@ -82,11 +92,15 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
                   ["mq", filtros.busca],
                   ["grupos", filtros.grupo],
                   ["local", filtros.local ? String(filtros.local) : undefined],
+                  ["mcondicao", filtros.condicao],
+                  ["mcompativel", filtros.compativel],
                 ].filter((par): par is [string, string] => Boolean(par[1])),
               )}
               resumoDosFiltros={[
                 filtros.grupo ? NOME_DO_GRUPO[filtros.grupo] : null,
                 filtros.local ? (locais.find((l) => l.id === filtros.local)?.caminho ?? null) : null,
+                filtros.condicao ? (filtros.condicao === "nenhuma" ? "Condição não informada" : NOME_DA_CONDICAO[filtros.condicao]) : null,
+                filtros.compativel ? `Compatível com ${filtros.compativel}` : null,
                 filtros.busca ? `Busca “${filtros.busca}”` : null,
               ].filter((t): t is string => Boolean(t))}
               locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
@@ -101,7 +115,18 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
 
       {resumo.materiais ? (
         <div className="mt-8">
-          <FiltrosDosMateriaisNaTela filtros={filtros} locais={locais.map(({ id, caminho }) => ({ id, caminho }))} />
+          <FiltrosDosMateriaisNaTela
+            filtros={filtros}
+            locais={locais.map(({ id, caminho }) => ({ id, caminho }))}
+            compatibilidades={compatibilidades}
+          />
+          {lista.length ? (
+            <p className="mt-3 text-13 text-gray-600">
+              {porCondicao
+                .map((c) => `${c.condicao ? NOME_DA_CONDICAO[c.condicao] : "Não informada"}: ${plural(c.cadastros, "material", "materiais")} (${numero(c.unidades)} un.)`)
+                .join(" · ")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -132,11 +157,22 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
                       {NOME_DO_GRUPO[grupo]} <span className="font-normal text-gray-500">· {materiais.length}</span>
                     </th>
                   </tr>
-                  {materiais.map((m) => {
+                  {materiais.map((m, i) => {
+                    // Um subtítulo quando a condição muda (a lista já vem na ordem: Novo, Bom, Usado… e sem condição).
+                    const novaCondicao = i === 0 || materiais[i - 1].condicao !== m.condicao;
+                    const daCondicao = materiais.filter((x) => x.condicao === m.condicao);
                     const selecionado = m.id === aberto;
                     return (
+                      <Fragment key={m.id}>
+                      {novaCondicao ? (
+                        <tr className="border-b border-gray-100">
+                          <th scope="rowgroup" colSpan={4} className="py-1.5 pr-6 pl-6 text-left text-12 font-medium tracking-wide text-gray-500 uppercase">
+                            {m.condicao ? NOME_DA_CONDICAO[m.condicao] : "Condição não informada"}
+                            <span className="font-normal normal-case"> · {plural(daCondicao.length, "material", "materiais")}, {numero(daCondicao.reduce((s, x) => s + x.quantidade, 0))} un.</span>
+                          </th>
+                        </tr>
+                      ) : null}
                       <tr
-                        key={m.id}
                         aria-current={selecionado ? "true" : undefined}
                         className={cx(
                           "group relative border-b border-gray-100 transition-colors duration-150 hover:bg-gray-50",
@@ -151,9 +187,9 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
                           >
                             {m.nome}
                           </Link>
-                          {m.marcaModelo || m.condicao ? (
+                          {m.marcaModelo || m.compativelCom ? (
                             <p className="text-13 text-gray-500">
-                              {juntar(m.marcaModelo, m.condicao ? NOME_DA_CONDICAO[m.condicao] : null)}
+                              {juntar(m.marcaModelo, m.compativelCom ? `para ${m.compativelCom}` : null)}
                             </p>
                           ) : null}
                         </td>
@@ -172,6 +208,7 @@ async function Lista({ searchParams }: Pick<Props, "searchParams">) {
                           <ChevronRight aria-hidden="true" className="size-4 text-gray-300 group-hover:text-gray-500" />
                         </td>
                       </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>

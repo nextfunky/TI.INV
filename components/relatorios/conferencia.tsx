@@ -3,7 +3,7 @@
 import { FileText } from "lucide-react";
 import { useState } from "react";
 
-import { CATEGORIAS, NOME_DA_CATEGORIA, type Categoria } from "@/lib/itens/valores";
+import { CATEGORIAS, CONDICOES, NOME_DA_CATEGORIA, NOME_DA_CONDICAO, type Categoria } from "@/lib/itens/valores";
 import { GRUPOS, NOME_DO_GRUPO, type Grupo } from "@/lib/materiais/valores";
 
 import { Botao, classesDoBotao } from "../botao";
@@ -143,6 +143,17 @@ export function RelatorioDeConferencia({
                     ))}
                   </div>
                 </fieldset>
+              ) : null}
+              {incluirMateriais ? (
+                <CampoSelecao id="conferencia-condicao" name="mcondicao" rotulo="Condição dos materiais" defaultValue="">
+                  <option value="">Qualquer condição</option>
+                  {CONDICOES.map((c) => (
+                    <option key={c} value={c}>
+                      {NOME_DA_CONDICAO[c]}
+                    </option>
+                  ))}
+                  <option value="nenhuma">Não informada</option>
+                </CampoSelecao>
               ) : null}
               <CampoSelecao id="conferencia-local" name="local" rotulo="Local" defaultValue="">
                 <option value="">Todos os locais</option>

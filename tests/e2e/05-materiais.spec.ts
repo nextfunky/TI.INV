@@ -135,17 +135,26 @@ test("a lista busca e filtra por grupo; só exclui material sem saída", async (
 
   await page.goto("/materiais");
   await expect(page.getByText("2 materiais · 5 unidades em estoque")).toBeVisible();
-  await expect(page.getByRole("row")).toHaveCount(5); // cabeçalho + 2 grupos + 2 materiais
+  await expect(page.getByRole("row")).toHaveCount(7); // cabeçalho + 2 grupos + 2 condições + 2 materiais
+  // Dentro do grupo, um subtítulo por condição, e os totais por condição embaixo dos filtros.
+  await expect(page.getByRole("rowheader", { name: /^Novo · 1 material/ }).or(page.getByRole("columnheader", { name: /^Novo · 1 material/ }))).toBeVisible();
+  await expect(page.getByText("Novo: 1 material (5 un.) · Não informada: 1 material (0 un.)")).toBeVisible();
+  await page.getByLabel("Condição", { exact: true }).selectOption({ label: "Não informada" });
+  await expect(page).toHaveURL(/condicao=nenhuma/);
+  await expect(page.getByRole("row", { name: /Toner/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Cabo HDMI/ })).toHaveCount(0);
+
+  await page.goto("/materiais");
   await page.getByLabel("Grupo").selectOption({ label: "Impressão" });
   await expect(page).toHaveURL(/grupo=impressao/);
-  await expect(page.getByRole("row")).toHaveCount(3);
+  await expect(page.getByRole("row")).toHaveCount(4);
   await expect(page.getByRole("row", { name: /Toner/ })).toBeVisible();
 
   await page.goto("/materiais");
   await page.getByLabel("Buscar materiais").fill("estoque da ti");
   await page.getByLabel("Buscar materiais").press("Enter");
   await expect(page).toHaveURL(/q=estoque/);
-  await expect(page.getByRole("row")).toHaveCount(3);
+  await expect(page.getByRole("row")).toHaveCount(4);
 
   // O filtro por local também acha o material.
   await page.goto("/materiais");
@@ -166,13 +175,26 @@ test("a lista busca e filtra por grupo; só exclui material sem saída", async (
   await expect(page.getByLabel("Quantidade")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Excluir" })).toHaveCount(0);
 
+  // "Compatível com": aparece no painel e vira filtro na lista.
+  await abrirMaterial(page, "Toner");
+  await painel(page).getByRole("link", { name: "Editar" }).click();
+  await page.getByLabel("Compatível com").fill("Ricoh SP 3710");
+  await salvar(page);
+  await expect(page).toHaveURL(/\/materiais\?material=\d+$/);
+  await expect(painel(page)).toContainText("Compatível com Ricoh SP 3710");
+  await page.goto("/materiais");
+  await page.getByLabel("Compatível com", { exact: true }).selectOption({ label: "Ricoh SP 3710" });
+  await expect(page).toHaveURL(/compativel=Ricoh/);
+  await expect(page.getByRole("row", { name: /Toner/ })).toContainText("para Ricoh SP 3710");
+  await expect(page.getByRole("row", { name: /Cabo HDMI/ })).toHaveCount(0);
+
   // Toner nunca teve saída: dá para excluir direto do painel.
   await abrirMaterial(page, "Toner");
   await painel(page).getByRole("button", { name: "Excluir" }).click();
   await page.getByRole("dialog", { name: "Excluir Toner · HP 85A" }).getByRole("button", { name: "Excluir" }).click();
   await expect(page).toHaveURL(/\/materiais$/);
   await expect(aviso(page)).toHaveText("Cadastro de Toner · HP 85A excluído.");
-  await expect(page.getByRole("row")).toHaveCount(3);
+  await expect(page.getByRole("row")).toHaveCount(4);
 });
 
 test("um local com material não pode ser excluído", async ({ page }) => {

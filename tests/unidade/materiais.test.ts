@@ -8,6 +8,7 @@ import { lerFiltrosDosMateriais, enderecoDosMateriais } from "@/lib/materiais/fi
 import { regrasDaEntrada, regrasDaSaida, regrasDoAjuste, regrasDoNovoMaterial } from "@/lib/materiais/regras";
 import {
   ajustarContagem,
+  compatibilidadesUsadas,
   criarMaterial,
   editarMaterial,
   excluirMaterial,
@@ -41,7 +42,7 @@ beforeEach(async () => {
 async function material(nome: string, quantidade = 0, extra: { grupo?: Grupo; localId?: number | null; marcaModelo?: string } = {}) {
   const r = await criarMaterial(db, {
     nome,
-    marcaModelo: extra.marcaModelo ?? null,
+    marcaModelo: extra.marcaModelo ?? null, compativelCom: null,
     grupo: extra.grupo ?? "cabos",
     localId: extra.localId ?? null,
     condicao: null,
@@ -61,7 +62,7 @@ async function pessoa(nome: string) {
 const saldo = async (id: number) => (await obterMaterial(db, id))!.quantidade;
 
 describe("regras dos formulários de material", () => {
-  const base = { nome: "Cabo HDMI", marcaModelo: "", grupo: "cabos", localId: "", condicao: "", observacoes: "" };
+  const base = { nome: "Cabo HDMI", marcaModelo: "", compativelCom: "", grupo: "cabos", localId: "", condicao: "", observacoes: "" };
 
   it("quantidade inicial vazia vale 0; texto, vírgula e negativo não passam", () => {
     expect(regrasDoNovoMaterial.parse({ ...base, quantidade: "" }).quantidade).toBe(0);
@@ -102,7 +103,7 @@ describe("cadastro de materiais", () => {
   it("recusa um local que não existe", async () => {
     const r = await criarMaterial(db, {
       nome: "Cabo",
-      marcaModelo: null,
+      marcaModelo: null, compativelCom: null,
       grupo: "cabos",
       localId: 999,
       condicao: null,
@@ -116,7 +117,7 @@ describe("cadastro de materiais", () => {
     const id = await material("Cabo HDMI", 3);
     const r = await editarMaterial(db, id, {
       nome: "Cabo HDMI 2 m",
-      marcaModelo: "Genérico",
+      marcaModelo: "Genérico", compativelCom: null,
       grupo: "cabos",
       localId: null,
       condicao: "novo",
@@ -124,7 +125,7 @@ describe("cadastro de materiais", () => {
     });
     expect(r).toEqual({ salvo: true });
     expect(await obterMaterial(db, id)).toMatchObject({ nome: "Cabo HDMI 2 m", condicao: "novo", quantidade: 3 });
-    expect(await editarMaterial(db, 999, { nome: "x", marcaModelo: null, grupo: "cabos", localId: null, condicao: null, observacoes: null })).toEqual({
+    expect(await editarMaterial(db, 999, { nome: "x", marcaModelo: null, compativelCom: null, grupo: "cabos", localId: null, condicao: null, observacoes: null })).toEqual({
       salvo: false,
       naoEncontrado: true,
     });
@@ -148,6 +149,37 @@ describe("cadastro de materiais", () => {
     expect(lerFiltrosDosMateriais({ grupo: "inventado" })).toEqual({ busca: undefined, grupo: undefined });
     expect(enderecoDosMateriais({ busca: "cabo", grupo: "cabos" })).toBe("/materiais?q=cabo&grupo=cabos");
     expect(enderecoDosMateriais({})).toBe("/materiais");
+  });
+});
+
+describe("condição e compatível com", () => {
+  async function toner(marcaModelo: string, condicao: "novo" | "usado" | null, compativelCom: string | null, quantidade: number) {
+    const r = await criarMaterial(db, { nome: "Toner", marcaModelo, compativelCom, grupo: "impressao", localId: null, condicao, observacoes: null, quantidade });
+    if (!r.criado) throw new Error("não criou");
+  }
+
+  it("ordena por condição (novos, usados e, por último, sem condição) e filtra por condição e impressora", async () => {
+    await toner("Rework SP3710X", "usado", "Ricoh SP 3710", 6);
+    await toner("TN217 Ciano", null, "Brother", 2);
+    await toner("Ricoh SP3710X", "novo", "Ricoh SP 3710", 2);
+    await toner("InterCopy Preto", "novo", "Ricoh MP C2003", 3);
+    expect((await listarMateriais(db)).map((m) => [m.marcaModelo, m.condicao])).toEqual([
+      ["InterCopy Preto", "novo"],
+      ["Ricoh SP3710X", "novo"],
+      ["Rework SP3710X", "usado"],
+      ["TN217 Ciano", null],
+    ]);
+    expect((await listarMateriais(db, { condicao: "usado" })).map((m) => m.marcaModelo)).toEqual(["Rework SP3710X"]);
+    expect((await listarMateriais(db, { condicao: "nenhuma" })).map((m) => m.marcaModelo)).toEqual(["TN217 Ciano"]);
+    expect((await listarMateriais(db, { compativel: "Ricoh SP 3710" })).map((m) => m.marcaModelo)).toEqual(["Ricoh SP3710X", "Rework SP3710X"]);
+    expect((await listarMateriais(db, { busca: "brother" })).map((m) => m.marcaModelo)).toEqual(["TN217 Ciano"]);
+    expect(await compatibilidadesUsadas(db)).toEqual(["Brother", "Ricoh MP C2003", "Ricoh SP 3710"]);
+  });
+
+  it("lê os filtros novos do endereço", () => {
+    expect(lerFiltrosDosMateriais({ condicao: "nenhuma", compativel: " Ricoh SP 3710 " })).toMatchObject({ condicao: "nenhuma", compativel: "Ricoh SP 3710" });
+    expect(lerFiltrosDosMateriais({ condicao: "inventada" }).condicao).toBeUndefined();
+    expect(enderecoDosMateriais({ condicao: "usado", compativel: "Ricoh SP 3710" })).toBe("/materiais?condicao=usado&compativel=Ricoh+SP+3710");
   });
 });
 

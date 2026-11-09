@@ -71,6 +71,13 @@
       "when": 1793978519396,
       "tag": "0009_historico",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794229894052,
+      "tag": "0010_compativel-com",
+      "breakpoints": true
     }
   ]
 }

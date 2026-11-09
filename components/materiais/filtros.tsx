@@ -5,18 +5,21 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { cx } from "@/lib/classes";
-import { enderecoDosMateriais, type FiltrosDosMateriais } from "@/lib/materiais/filtros";
+import { CONDICOES, NOME_DA_CONDICAO } from "@/lib/itens/valores";
+import { enderecoDosMateriais, type CondicaoDoFiltro, type FiltrosDosMateriais } from "@/lib/materiais/filtros";
 import { GRUPOS, NOME_DO_GRUPO, type Grupo } from "@/lib/materiais/valores";
 
 import { Selecao } from "../inventario/busca-e-selecoes";
 
-/** Busca e filtros por grupo e local na lista de materiais. Escolher o grupo já aplica; a busca vale ao apertar Enter. */
+/** Busca e filtros por grupo, condição, compatibilidade e local na lista de materiais. Escolher o grupo já aplica; a busca vale ao apertar Enter. */
 export function FiltrosDosMateriaisNaTela({
   filtros,
   locais,
+  compatibilidades,
 }: {
   filtros: FiltrosDosMateriais;
   locais: Array<{ id: number; caminho: string }>;
+  compatibilidades: string[];
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState(filtros.busca ?? "");
@@ -43,7 +46,7 @@ export function FiltrosDosMateriaisNaTela({
           type="search"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="Nome, marca, local…"
+          placeholder="Nome, marca, impressora, local…"
           className={cx(
             "h-8 w-full rounded-full border bg-white pr-8 pl-9 text-13 transition-[border-color,box-shadow] duration-150 focus:border-accent focus:ring-4 focus:ring-accent/12 focus:outline-none sm:w-64 [&::-webkit-search-cancel-button]:hidden",
             filtros.busca ? "border-accent" : "border-gray-200 hover:border-gray-300",
@@ -79,6 +82,41 @@ export function FiltrosDosMateriaisNaTela({
           </option>
         ))}
       </Selecao>
+
+      <Selecao
+        id="filtro-condicao-material"
+        name="condicao"
+        rotulo="Condição"
+        ativa={Boolean(filtros.condicao)}
+        value={filtros.condicao ?? ""}
+        onChange={(e) => aplicar({ condicao: (e.target.value || undefined) as CondicaoDoFiltro | undefined })}
+      >
+        <option value="">Qualquer condição</option>
+        {CONDICOES.map((c) => (
+          <option key={c} value={c}>
+            {NOME_DA_CONDICAO[c]}
+          </option>
+        ))}
+        <option value="nenhuma">Não informada</option>
+      </Selecao>
+
+      {compatibilidades.length ? (
+        <Selecao
+          id="filtro-compativel"
+          name="compativel"
+          rotulo="Compatível com"
+          ativa={Boolean(filtros.compativel)}
+          value={filtros.compativel ?? ""}
+          onChange={(e) => aplicar({ compativel: e.target.value || undefined })}
+        >
+          <option value="">Compatível com: todos</option>
+          {compatibilidades.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Selecao>
+      ) : null}
 
       <Selecao
         id="filtro-local-material"

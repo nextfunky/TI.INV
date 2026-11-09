@@ -10,7 +10,7 @@ import { exigirSessao } from "@/lib/auth/sessao";
 import { obterBanco } from "@/lib/db";
 import { listarLocais } from "@/lib/locais/servico";
 import { nomeDoMaterial } from "@/lib/materiais/nomes";
-import { obterMaterial } from "@/lib/materiais/servico";
+import { compatibilidadesUsadas, obterMaterial } from "@/lib/materiais/servico";
 
 export const metadata: Metadata = { title: "Editar material" };
 
@@ -37,7 +37,7 @@ async function Edicao({ params }: Pick<Props, "params">) {
   const db = obterBanco();
   const material = Number.isInteger(id) && id > 0 ? await obterMaterial(db, id) : null;
   if (!material) notFound();
-  const locais = await listarLocais(db);
+  const [locais, compatibilidades] = await Promise.all([listarLocais(db), compatibilidadesUsadas(db)]);
 
   return (
     <>
@@ -54,7 +54,11 @@ async function Edicao({ params }: Pick<Props, "params">) {
         {material.temSaidas ? null : <ExcluirMaterial id={id} nome={nomeDoMaterial(material)} />}
       </div>
       <div className="mt-8">
-        <FormularioDoMaterial material={material} locais={locais.map(({ id: i, caminho }) => ({ id: i, caminho }))} />
+        <FormularioDoMaterial
+          material={material}
+          locais={locais.map(({ id: i, caminho }) => ({ id: i, caminho }))}
+          compatibilidades={compatibilidades}
+        />
       </div>
     </>
   );

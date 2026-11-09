@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, or, sql, sum } from "drizzle-orm";
 
 import { colaboradores, locais, materiais, movimentosDeMaterial } from "@/lib/db/schema";
 import type { Banco } from "@/lib/db/tipos";
@@ -101,6 +101,7 @@ export async function listarMateriais(db: Banco, filtros: FiltrosDosMateriais = 
       id: materiais.id,
       nome: materiais.nome,
       marcaModelo: materiais.marcaModelo,
+      compativelCom: materiais.compativelCom,
       grupo: materiais.grupo,
       condicao: materiais.condicao,
       quantidade: materiais.quantidade,
@@ -112,10 +113,21 @@ export async function listarMateriais(db: Banco, filtros: FiltrosDosMateriais = 
       and(
         filtros.grupo ? eq(materiais.grupo, filtros.grupo) : undefined,
         doLocal ? inArray(materiais.localId, doLocal) : undefined,
-        termo ? or(ilike(materiais.nome, termo), ilike(materiais.marcaModelo, termo), ilike(locais.caminho, termo)) : undefined,
+        filtros.condicao === "nenhuma" ? isNull(materiais.condicao) : filtros.condicao ? eq(materiais.condicao, filtros.condicao) : undefined,
+        filtros.compativel ? eq(materiais.compativelCom, filtros.compativel) : undefined,
+        termo
+          ? or(ilike(materiais.nome, termo), ilike(materiais.marcaModelo, termo), ilike(materiais.compativelCom, termo), ilike(locais.caminho, termo))
+          : undefined,
       ),
     )
-    .orderBy(asc(materiais.grupo), sql`lower(${materiais.nome})`, sql`lower(coalesce(${materiais.marcaModelo}, ''))`, asc(materiais.id));
+    // Grupo, depois a condição (Novo, Bom, Usado, Regular, Defeituoso e, por último, sem condição), depois o nome.
+    .orderBy(
+      asc(materiais.grupo),
+      sql`${materiais.condicao} asc nulls last`,
+      sql`lower(${materiais.nome})`,
+      sql`lower(coalesce(${materiais.marcaModelo}, ''))`,
+      asc(materiais.id),
+    );
 }
 
 /** Quantos materiais estão cadastrados e quantas unidades há no total. */
@@ -134,6 +146,12 @@ export async function materiaisDoLocal(db: Banco, localId: number, quantos = 8) 
     unidades: lista.reduce((s, m) => s + m.quantidade, 0),
     maiores: [...lista].sort((a, b) => b.quantidade - a.quantidade).slice(0, quantos),
   };
+}
+
+/** Os valores já usados em "Compatível com", para o filtro da lista. */
+export async function compatibilidadesUsadas(db: Banco): Promise<string[]> {
+  const linhas = await db.selectDistinct({ valor: materiais.compativelCom }).from(materiais).where(isNotNull(materiais.compativelCom));
+  return linhas.map((l) => l.valor!).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 /** Os materiais que zeraram (para o Início). */
@@ -155,6 +173,7 @@ export async function obterMaterial(db: Banco, id: number) {
       id: materiais.id,
       nome: materiais.nome,
       marcaModelo: materiais.marcaModelo,
+      compativelCom: materiais.compativelCom,
       grupo: materiais.grupo,
       localId: materiais.localId,
       condicao: materiais.condicao,

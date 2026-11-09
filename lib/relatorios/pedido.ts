@@ -1,5 +1,6 @@
 import { lerFiltros, type FiltrosDoInventario } from "@/lib/itens/filtros";
-import { CATEGORIAS, type Categoria } from "@/lib/itens/valores";
+import { CATEGORIAS, CONDICOES, type Categoria } from "@/lib/itens/valores";
+import type { CondicaoDoFiltro } from "@/lib/materiais/filtros";
 import { GRUPOS, type Grupo } from "@/lib/materiais/valores";
 
 /**
@@ -8,13 +9,13 @@ import { GRUPOS, type Grupo } from "@/lib/materiais/valores";
  *   /relatorios/conferencia?itens=1&materiais=1&categorias=periferico&categorias=movel&grupos=cabos&local=3
  *
  * Os filtros do Inventário (q, categoria, status, tipo, condicao, pessoa, local) valem para os itens;
- * os dos materiais usam mq (busca) e grupos. O local vale para os dois.
+ * os dos materiais usam mq (busca), grupos, mcondicao e mcompativel. O local vale para os dois.
  */
 export type PedidoDeConferencia = {
   itens: boolean;
   materiais: boolean;
   filtrosDosItens: Omit<FiltrosDoInventario, "pagina"> & { categorias: Categoria[] };
-  filtrosDosMateriais: { busca?: string; grupos: Grupo[]; local?: number };
+  filtrosDosMateriais: { busca?: string; grupos: Grupo[]; local?: number; condicao?: CondicaoDoFiltro; compativel?: string };
 };
 
 type Parametros = Record<string, string | string[] | undefined>;
@@ -40,6 +41,8 @@ export function lerPedidoDeConferencia(parametros: Parametros): PedidoDeConferen
       busca: mq || undefined,
       grupos: lista(GRUPOS, parametros.grupos),
       local: typeof filtros.local === "number" ? filtros.local : undefined,
+      condicao: [...CONDICOES, "nenhuma" as const].find((c) => c === parametros.mcondicao),
+      compativel: typeof parametros.mcompativel === "string" && parametros.mcompativel.trim() ? parametros.mcompativel.trim().slice(0, 100) : undefined,
     },
   };
 }

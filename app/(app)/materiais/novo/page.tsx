@@ -7,6 +7,7 @@ import { Trilha } from "@/components/trilha";
 import { exigirSessao } from "@/lib/auth/sessao";
 import { obterBanco } from "@/lib/db";
 import { listarLocais } from "@/lib/locais/servico";
+import { compatibilidadesUsadas } from "@/lib/materiais/servico";
 
 export const metadata: Metadata = { title: "Novo material" };
 
@@ -26,6 +27,7 @@ export default function PaginaNovoMaterial() {
 
 async function Formulario() {
   await exigirSessao();
-  const locais = await listarLocais(obterBanco());
-  return <FormularioDoMaterial locais={locais.map(({ id, caminho }) => ({ id, caminho }))} />;
+  const db = obterBanco();
+  const [locais, compatibilidades] = await Promise.all([listarLocais(db), compatibilidadesUsadas(db)]);
+  return <FormularioDoMaterial locais={locais.map(({ id, caminho }) => ({ id, caminho }))} compatibilidades={compatibilidades} />;
 }

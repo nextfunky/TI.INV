@@ -17,17 +17,21 @@ import { useFocarErro } from "../use-focar-erro";
 export function FormularioDoMaterial({
   material,
   locais,
+  compatibilidades = [],
 }: {
   material?: {
     id: number;
     nome: string;
     marcaModelo: string | null;
+    compativelCom: string | null;
     grupo: string;
     localId: number | null;
     condicao: string | null;
     observacoes: string | null;
   };
   locais: Array<{ id: number; caminho: string }>;
+  /** Os valores já usados em "Compatível com", sugeridos ao digitar. */
+  compatibilidades?: string[];
 }) {
   const acao = material ? salvarMaterial.bind(null, material.id) : cadastrarMaterial;
   const [estado, enviar] = useActionState(acao, ESTADO_INICIAL);
@@ -36,6 +40,7 @@ export function FormularioDoMaterial({
   const valores: Record<string, string> = {
     nome: material?.nome ?? "",
     marcaModelo: material?.marcaModelo ?? "",
+    compativelCom: material?.compativelCom ?? "",
     grupo: material?.grupo ?? "",
     localId: material?.localId ? String(material.localId) : "",
     condicao: material?.condicao ?? "",
@@ -84,6 +89,24 @@ export function FormularioDoMaterial({
             </option>
           ))}
         </CampoSelecao>
+        <CampoTexto
+          id="compativelCom"
+          name="compativelCom"
+          rotulo="Compatível com"
+          placeholder="Ex.: Ricoh SP 3710"
+          maxLength={100}
+          autoComplete="off"
+          list="compatibilidades"
+          defaultValue={valores.compativelCom}
+          erro={erros.compativelCom}
+          dica="Opcional. Para que equipamento serve (toner, fonte, bateria…)."
+          className="sm:col-span-2"
+        />
+        <datalist id="compatibilidades">
+          {compatibilidades.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
         <CampoSelecao
           id="localId"
           name="localId"

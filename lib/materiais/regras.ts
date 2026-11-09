@@ -30,11 +30,12 @@ const quantidade = (mensagemVazia: string, minimo: 0 | 1) =>
     .refine((n) => n >= minimo, minimo === 1 ? "Informe uma quantidade maior que zero." : "Informe a quantidade.")
     .refine((n) => n <= QUANTIDADE_MAXIMA, `Use no máximo ${QUANTIDADE_MAXIMA.toLocaleString("pt-BR")}.`);
 
-export const CAMPOS_DO_MATERIAL = ["nome", "marcaModelo", "grupo", "localId", "condicao", "observacoes"] as const;
+export const CAMPOS_DO_MATERIAL = ["nome", "marcaModelo", "compativelCom", "grupo", "localId", "condicao", "observacoes"] as const;
 
 export const regrasDoMaterial = z.object({
   nome: z.string().trim().min(1, "Informe o nome do material.").max(100, "Use no máximo 100 caracteres."),
   marcaModelo: textoOpcional(100),
+  compativelCom: textoOpcional(100),
   grupo: z.enum(GRUPOS, { message: "Escolha o grupo." }),
   localId: idOpcional("Escolha um local da lista."),
   condicao: z

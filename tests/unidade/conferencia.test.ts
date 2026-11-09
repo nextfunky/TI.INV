@@ -100,7 +100,7 @@ describe("os dados da conferência", () => {
   });
 
   it("materiais por grupo, com as unidades, filtrando por grupo e local", async () => {
-    const base = { marcaModelo: null, condicao: null, observacoes: null } as const;
+    const base = { marcaModelo: null, compativelCom: null, condicao: null, observacoes: null } as const;
     await criarMaterial(db, { ...base, nome: "Patch Cord", grupo: "rede_e_rack", localId: filial, quantidade: 64 });
     await criarMaterial(db, { ...base, nome: "Patch Cord", grupo: "rede_e_rack", localId: jales, quantidade: 28 });
     await criarMaterial(db, { ...base, nome: "Cabo HDMI", grupo: "cabos", localId: filial, quantidade: 3 });

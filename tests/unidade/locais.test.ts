@@ -332,7 +332,7 @@ describe("local com materiais", () => {
     const estoque = await local("Estoque da TI", filial);
     const r = await criarMaterial(db, {
       nome: "Cabo HDMI",
-      marcaModelo: null,
+      marcaModelo: null, compativelCom: null,
       grupo: "cabos",
       localId: estoque,
       condicao: null,
